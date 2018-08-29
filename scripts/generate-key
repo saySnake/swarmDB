@@ -3,7 +3,7 @@ set -e
 
 prefix=${1:-`pwd`}
 
-# This is the elliptic curve used by Ethereum. In theory, this identity is an
+# This is the elliptic curve used by Ethereum. Technically, this identity is an
 # Ethereum account.
 openssl ecparam -name secp256k1 -genkey -noout -out $prefix/private-key.pem
 cat $prefix/private-key.pem
