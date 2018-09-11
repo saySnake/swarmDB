@@ -169,4 +169,13 @@ namespace bzn
     {
         return this->log_entries.size();
     }
+
+
+    raft_log::~raft_log()
+    {
+        if (this->log_entry_out_stream.is_open())
+        {
+            this->log_entry_out_stream.close();
+        }
+    }
 }

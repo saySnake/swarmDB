@@ -36,6 +36,8 @@ namespace bzn {
     public:
         raft_log(const std::string& log_path, const size_t max_storage = bzn::DEFAULT_MAX_STORAGE_SIZE);
 
+        ~raft_log();
+
         const bzn::log_entry& entry_at(size_t i) const;
         const bzn::log_entry& last_quorum_entry() const;
 
