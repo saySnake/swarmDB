@@ -14,14 +14,30 @@
 
 #pragma once
 
+#include <mutex>
 #include <options/options_base.hpp>
+#include <include/boost_asio_beast.hpp>
+#include <random>
 
 namespace bzn
 {
-    class chaos
+class chaos : public std::enable_shared_from_this<chaos>
     {
     public:
-        chaos(const bzn::options_base& options);
-        start();
+        chaos(std::shared_ptr<bzn::asio::io_context_base> io_context, const bzn::options_base& options);
+        void start();
+
+    private:
+        void start_crash_timer();
+        void handle_crash_timer(const boost::system::error_code&);
+
+        std::once_flag start_once;
+
+        const std::shared_ptr<bzn::asio::io_context_base> io_context;
+        const bzn::options_base& options;
+
+        std::unique_ptr<bzn::asio::steady_timer_base> crash_timer;
+
+        std::mt19937 random;
     };
 }

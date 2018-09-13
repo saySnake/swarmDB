@@ -95,5 +95,6 @@ add_subdirectory(swarm)
 add_subdirectory(utils)
 add_subdirectory(audit)
 add_subdirectory(pbft)
+add_subdirectory(chaos)
 
 include(cmake/static_analysis.cmake)
