@@ -146,6 +146,30 @@ simple_options::build_options()
 
     this->options_root.add(crypto);
 
+    po::options_description chaos("Chaos testing");
+    chaos.add_options()
+                 (CHAOS_ENABLED.c_str(),
+                         po::value<bool>()->default_value(false),
+                         "enable chaos testing module")
+
+                 /*
+                  * With the default parameters specified here,
+                  * 10% of nodes will fail within a couple minutes
+                  * 20% more will fail within the first hour
+                  * 40% will last 1-12 hours
+                  * 20% will last 12-48 hours
+                  * 10% will last 48+ hours
+                  */
+                 (CHAOS_NODE_FAILURE_SHAPE.c_str(),
+                         po::value<double>()->default_value(0.5),
+                         "shape parameter of Weibull distribution for node lifetime")
+                 (CHAOS_NODE_FAILURE_SCALE.c_str(),
+                         po::value<double>()->default_value(10),
+                         "scale parameter of Weibull distribution for node lifetime (expressed in hours)");
+
+    this->options_root.add(chaos);
+
+
 }
 
 bool

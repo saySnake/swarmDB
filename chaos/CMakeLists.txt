@@ -4,3 +4,5 @@ add_library(chaos
         )
 
 target_link_libraries(chaos)
+
+add_subdirectory(test)

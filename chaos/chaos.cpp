@@ -15,6 +15,7 @@
 #include <random>
 #include <boost/format.hpp>
 #include <chaos/chaos.hpp>
+#include <options/simple_options.hpp>
 
 using namespace bzn;
 
@@ -47,21 +48,21 @@ chaos::chaos(std::shared_ptr<bzn::asio::io_context_base> io_context, const bzn::
 void
 chaos::start()
 {
-    std::call_once(this->start_once,
-        [this]()
-        {
-            this->start_crash_timer();
-        });
+    if (!this->options.get_simple_options().get<bool>(bzn::option_names::CHAOS_ENABLED))
+    {
+        std::call_once(
+                this->start_once, [this]()
+                {
+                    this->start_crash_timer();
+                }
+        );
+    }
 }
+
 
 void
 chaos::start_crash_timer()
 {
-    if (!stub::chaos_enabled)
-    {
-        return;
-    }
-
     std::weibull_distribution<double> distribution(stub::weibull_shape, stub::weibull_scale_hours);
 
     double hours_until_crash = distribution(this->random);
@@ -87,7 +88,6 @@ chaos::handle_crash_timer(const boost::system::error_code& /*ec*/)
     }
 
     LOG(fatal) << "Chaos module triggering node crash";
-    // This log message may not actually be printed, because...
 
     std::abort();
     // Intentionally crashing abruptly
