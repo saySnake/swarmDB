@@ -40,12 +40,12 @@ namespace
 simple_options::simple_options()
         : options_root("Core configuration")
 {
+    this->build_options();
 }
 
 bool
 simple_options::parse(int argc, const char* argv[])
 {
-    this->build_options();
     return this->handle_command_line_options(argc, argv) && this->handle_config_file_options() && this->validate_options();
 }
 
@@ -320,4 +320,18 @@ bool
 simple_options::has(const std::string& option_name) const
 {
     return this->vm.count(option_name) > 0;
+}
+
+void
+simple_options::set(const std::string& option_name, const std::string& option_value)
+{
+    po::basic_option<char> opt;
+    opt.string_key = option_name;
+    opt.value.push_back(option_value);
+
+    boost::program_options::parsed_options parsed(&(this->options_root));
+    parsed.options.push_back(opt);
+
+    this->vm.erase(option_name);
+    po::store(parsed, this->vm);
 }

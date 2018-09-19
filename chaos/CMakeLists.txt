@@ -3,6 +3,6 @@ add_library(chaos
         chaos.cpp
         )
 
-target_link_libraries(chaos)
+target_link_libraries(chaos options)
 
 add_subdirectory(test)

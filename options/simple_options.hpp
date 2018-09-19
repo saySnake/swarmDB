@@ -81,6 +81,11 @@ namespace bzn
         }
 
         /*
+         * Assign a value to an option at runtime
+         */
+        void set(const std::string& option_name, const std::string& option_value);
+
+        /*
          * Do we have a value for an option (either explicit or default)
          */
         bool has(const std::string& option_name) const;

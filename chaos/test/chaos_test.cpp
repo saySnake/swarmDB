@@ -45,11 +45,14 @@ public:
                 .WillRepeatedly(Invoke(
                         [&](auto handler){this->node_crash_handler = handler;}
                 ));
+        
+        this->options.get_mutable_simple_options().set(bzn::option_names::CHAOS_ENABLED, "true");
     }
 
     void build_chaos()
     {
         this->chaos = std::make_shared<bzn::chaos>(this->mock_io_context, this->options);
+        this->chaos->start();
     }
 
 };

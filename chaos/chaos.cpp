@@ -48,7 +48,7 @@ chaos::chaos(std::shared_ptr<bzn::asio::io_context_base> io_context, const bzn::
 void
 chaos::start()
 {
-    if (!this->options.get_simple_options().get<bool>(bzn::option_names::CHAOS_ENABLED))
+    if (this->options.get_simple_options().get<bool>(bzn::option_names::CHAOS_ENABLED))
     {
         std::call_once(
                 this->start_once, [this]()
