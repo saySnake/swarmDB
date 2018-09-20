@@ -46,7 +46,11 @@ namespace bzn::option_names
 
     const std::string CHAOS_ENABLED = "chaos_testing_enabled";
     const std::string CHAOS_NODE_FAILURE_SHAPE = "chaos_node_failure_shape";
-    const std::string CHAOS_NODE_FAILURE_SCALE = "chaos_node_failure_scale";
+    const std::string CHAOS_NODE_FAILURE_SCALE = "chaos_node_failure_scale_hours";
+    const std::string CHAOS_MESSAGE_DROP_CHANCE = "chaos_message_drop_chance";
+    const std::string CHAOS_MESSAGE_DELAY_CHANCE = "chaos_message_delay_chance";
+    const std::string CHAOS_MESSAGE_DELAY_TIME = "chaos_message_delay_time_milliseconds";
+
 
 }
 

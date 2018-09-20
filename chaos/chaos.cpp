@@ -16,8 +16,10 @@
 #include <boost/format.hpp>
 #include <chaos/chaos.hpp>
 #include <options/simple_options.hpp>
+#include <include/boost_asio_beast.hpp>
 
 using namespace bzn;
+using namespace bzn::option_names;
 
 chaos::chaos(std::shared_ptr<bzn::asio::io_context_base> io_context, const bzn::options_base& options)
         : io_context(io_context)
@@ -32,7 +34,7 @@ chaos::chaos(std::shared_ptr<bzn::asio::io_context_base> io_context, const bzn::
 void
 chaos::start()
 {
-    if (this->options.get_simple_options().get<bool>(bzn::option_names::CHAOS_ENABLED))
+    if (this->enabled())
     {
         std::call_once(
                 this->start_once, [this]()
@@ -48,8 +50,8 @@ void
 chaos::start_crash_timer()
 {
     std::weibull_distribution<double> distribution(
-            this->options.get_simple_options().get<double>(bzn::option_names::CHAOS_NODE_FAILURE_SHAPE),
-            this->options.get_simple_options().get<double>(bzn::option_names::CHAOS_NODE_FAILURE_SCALE));
+            this->options.get_simple_options().get<double>(CHAOS_NODE_FAILURE_SHAPE),
+            this->options.get_simple_options().get<double>(CHAOS_NODE_FAILURE_SCALE));
 
     double hours_until_crash = distribution(this->random);
     LOG(info) << boost::format("Chaos module will trigger this node crashing in %1$.2f hours") % hours_until_crash;
@@ -68,13 +70,56 @@ chaos::start_crash_timer()
 void
 chaos::handle_crash_timer(const boost::system::error_code& /*ec*/)
 {
-    if (!this->options.get_simple_options().get<bool>(bzn::option_names::CHAOS_ENABLED))
-    {
-        return;
-    }
-
     LOG(fatal) << "Chaos module triggering node crash";
 
-    std::abort();
     // Intentionally crashing abruptly
+    std::abort();
+}
+
+bool
+chaos::enabled()
+{
+    return this->options.get_simple_options().get<bool>(CHAOS_ENABLED);
+}
+
+bool
+chaos::is_message_delayed()
+{
+    bool result = this->enabled() &&
+           this->options.get_simple_options().get<double>(CHAOS_MESSAGE_DELAY_CHANCE) > this->random_float(this->random);
+
+    if (result)
+    {
+        LOG(debug) << "Chaos module delaying message";
+    }
+
+    return result;
+}
+
+bool
+chaos::is_message_dropped()
+{
+    bool result = this->enabled() &&
+           this->options.get_simple_options().get<double>(CHAOS_MESSAGE_DROP_CHANCE) > this->random_float(this->random);
+
+    if (result)
+    {
+        LOG(debug) << "Chaos module dropping message";
+    }
+
+    return result;
+}
+
+void
+chaos::reschedule_message(std::function<void()> callback) const
+{
+    std::shared_ptr<bzn::asio::steady_timer_base> timer = this->io_context->make_unique_steady_timer();
+    auto delay = std::chrono::milliseconds(this->options.get_simple_options().get<uint>(CHAOS_MESSAGE_DELAY_TIME));
+
+    timer->expires_from_now(delay);
+    timer->async_wait(
+            [timer, callback](auto /*error*/)
+            {
+                callback();
+            });
 }

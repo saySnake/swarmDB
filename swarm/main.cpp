@@ -217,10 +217,10 @@ main(int argc, const char* argv[])
             });
 
         // startup...
-        auto websocket = std::make_shared<bzn::beast::websocket>();
-        auto node = std::make_shared<bzn::node>(io_context, websocket, options.get_ws_idle_timeout(), boost::asio::ip::tcp::endpoint{options.get_listener()});
-        auto audit = std::make_shared<bzn::audit>(io_context, node, options.get_monitor_endpoint(io_context), options.get_uuid(), options.get_audit_mem_size(), options.pbft_enabled());
         auto chaos = std::make_shared<bzn::chaos>(io_context, options);
+        auto websocket = std::make_shared<bzn::beast::websocket>();
+        auto node = std::make_shared<bzn::node>(io_context, websocket, chaos, options.get_ws_idle_timeout(), boost::asio::ip::tcp::endpoint{options.get_listener()});
+        auto audit = std::make_shared<bzn::audit>(io_context, node, options.get_monitor_endpoint(io_context), options.get_uuid(), options.get_audit_mem_size(), options.pbft_enabled());
 
         node->start();
         chaos->start();

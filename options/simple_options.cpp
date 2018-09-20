@@ -165,11 +165,26 @@ simple_options::build_options()
                          "shape parameter of Weibull distribution for node lifetime")
                  (CHAOS_NODE_FAILURE_SCALE.c_str(),
                          po::value<double>()->default_value(10),
-                         "scale parameter of Weibull distribution for node lifetime (expressed in hours)");
+                         "scale parameter of Weibull distribution for node lifetime (expressed in hours)")
+
+
+                 /*
+                  * These parameters are chosen arbitrarily, but a cursory search suggests that
+                  * an exponential distribution is indeed reasonable for internet packet delay
+                  */
+                 (CHAOS_MESSAGE_DELAY_CHANCE.c_str(),
+                         po::value<double>()->default_value(0.2),
+                         "chance by which outgoing messages are delayed (independently at random)")
+                 (CHAOS_MESSAGE_DELAY_TIME.c_str(),
+                         po::value<uint>()->default_value(2500),
+                         "how long to wait before attempting to resend a delayed message (at which point it can be delayed again, resulting in an exponential distribution on the actual delay)")
+
+
+                 (CHAOS_MESSAGE_DROP_CHANCE.c_str(),
+                         po::value<double>()->default_value(0.05),
+                         "chance that outgoing messages are dropped entirely (independently at random)");
 
     this->options_root.add(chaos);
-
-
 }
 
 bool
