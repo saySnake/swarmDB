@@ -31,6 +31,8 @@ public:
 
     std::shared_ptr<bzn::chaos> chaos;
 
+    size_t timer_waited = 0;
+
     // This pattern copied from audit test
     chaos_test()
     {
@@ -40,10 +42,13 @@ public:
                 ));
 
         EXPECT_CALL(*(this->node_crash_timer), async_wait(_))
-                .Times(Exactly(1)) // This enforces the assumption: if this actually the leader progress timer,
-                        // then there are some tests that will never wait on it
+                .Times(AnyNumber())
                 .WillRepeatedly(Invoke(
-                        [&](auto handler){this->node_crash_handler = handler;}
+                        [&](auto handler)
+                        {
+                            this->node_crash_handler = handler;
+                            this->timer_waited++;
+                        }
                 ));
         
         this->options.get_mutable_simple_options().set(bzn::option_names::CHAOS_ENABLED, "true");
@@ -57,8 +62,13 @@ public:
 
 };
 
-TEST_F(chaos_test, test_timer_constructed_correctly)
+
+using chaos_test_DeathTest = chaos_test; // https://github.com/google/googletest/blob/master/googletest/docs/advanced.md#death-test-naming
+TEST_F(chaos_test_DeathTest, test_crash_scheduled_and_executed)
 {
-    // This just tests the expecations built into the superclass
     this->build_chaos();
+    EXPECT_EQ(this->timer_waited, 1u);
+
+    ASSERT_DEATH(this->node_crash_handler(boost::system::error_code()), "");
+
 }
