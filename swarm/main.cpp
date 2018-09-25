@@ -181,16 +181,16 @@ main(int argc, const char* argv[])
 {
     try
     {
-        bzn::options options;
-        if (!options.parse_command_line(argc, argv))
+        auto options = std::make_shared<bzn::options>();
+        if (!options->parse_command_line(argc, argv))
         {
             return 1;
         }
 
-        init_logging(options);
+        init_logging(*options);
 
         // todo: right now we just want to check that an account "has" a balance...
-        double eth_balance = bzn::ethereum().get_ether_balance(options.get_ethererum_address(), options.get_ethererum_io_api_token());
+        double eth_balance = bzn::ethereum().get_ether_balance(options->get_ethererum_address(), options->get_ethererum_io_api_token());
 
         if (eth_balance == 0)
         {
@@ -198,8 +198,8 @@ main(int argc, const char* argv[])
             return 0;
         }
 
-        bzn::bootstrap_peers peers(options.peer_validation_enabled());
-        if (!init_peers(peers, options.get_bootstrap_peers_file(), options.get_bootstrap_peers_url()))
+        bzn::bootstrap_peers peers(options->peer_validation_enabled());
+        if (!init_peers(peers, options->get_bootstrap_peers_file(), options->get_bootstrap_peers_url()))
             throw std::runtime_error("Bootstrap peers initialization failed.");
 
         auto io_context = std::make_shared<bzn::asio::io_context>();
@@ -219,42 +219,42 @@ main(int argc, const char* argv[])
         // startup...
         auto chaos = std::make_shared<bzn::chaos>(io_context, options);
         auto websocket = std::make_shared<bzn::beast::websocket>();
-        auto node = std::make_shared<bzn::node>(io_context, websocket, chaos, options.get_ws_idle_timeout(), boost::asio::ip::tcp::endpoint{options.get_listener()});
-        auto audit = std::make_shared<bzn::audit>(io_context, node, options.get_monitor_endpoint(io_context), options.get_uuid(), options.get_audit_mem_size(), options.pbft_enabled());
+        auto node = std::make_shared<bzn::node>(io_context, websocket, chaos, options->get_ws_idle_timeout(), boost::asio::ip::tcp::endpoint{options->get_listener()});
+        auto audit = std::make_shared<bzn::audit>(io_context, node, options->get_monitor_endpoint(io_context), options->get_uuid(), options->get_audit_mem_size(), options->pbft_enabled());
 
         node->start();
         chaos->start();
 
-        if (options.get_simple_options().get<bool>(bzn::option_names::AUDIT_ENABLED))
+        if (options->get_simple_options().get<bool>(bzn::option_names::AUDIT_ENABLED))
         {
             audit->start();
         }
 
-        if (options.pbft_enabled())
+        if (options->pbft_enabled())
         {
             auto failure_detector = std::make_shared<bzn::pbft_failure_detector>(io_context);
-            auto pbft = std::make_shared<bzn::pbft>(node, io_context, peers.get_peers(), options.get_uuid()
+            auto pbft = std::make_shared<bzn::pbft>(node, io_context, peers.get_peers(), options->get_uuid()
                     , std::make_shared<bzn::dummy_pbft_service>(io_context)
                     , failure_detector
             );
 
-            pbft->set_audit_enabled(options.get_simple_options().get<bool>(bzn::option_names::AUDIT_ENABLED));
+            pbft->set_audit_enabled(options->get_simple_options().get<bool>(bzn::option_names::AUDIT_ENABLED));
 
             pbft->start();
         }
         else
         {
             // create http server using our configured listener address & http port number...
-            auto ep = options.get_listener();
-            ep.port(options.get_http_port());
+            auto ep = options->get_listener();
+            ep.port(options->get_http_port());
 
-            auto raft = std::make_shared<bzn::raft>(io_context, node, peers.get_peers(), options.get_uuid(), options.get_state_dir(), options.get_max_storage(), options.peer_validation_enabled());
+            auto raft = std::make_shared<bzn::raft>(io_context, node, peers.get_peers(), options->get_uuid(), options->get_state_dir(), options->get_max_storage(), options->peer_validation_enabled());
             auto storage = std::make_shared<bzn::storage>();
             auto crud = std::make_shared<bzn::crud>(node, raft, storage, std::make_shared<bzn::subscription_manager>(io_context));
             auto http_server = std::make_shared<bzn::http::server>(io_context, crud, ep);
             auto status = std::make_shared<bzn::status>(node, bzn::status::status_provider_list_t{raft});
 
-            raft->set_audit_enabled(options.get_simple_options().get<bool>(bzn::option_names::AUDIT_ENABLED));
+            raft->set_audit_enabled(options->get_simple_options().get<bool>(bzn::option_names::AUDIT_ENABLED));
 
             raft->initialize_storage_from_log(storage);
 
@@ -265,7 +265,7 @@ main(int argc, const char* argv[])
             status->start();
         }
         
-        print_banner(options, eth_balance);
+        print_banner(*options, eth_balance);
 
         start_worker_threads_and_wait(io_context);
     }

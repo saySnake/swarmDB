@@ -22,7 +22,7 @@ using namespace ::testing;
 class chaos_test : public Test
 {
 public:
-    bzn::options options;
+    std::shared_ptr<bzn::options> options;
     std::shared_ptr<bzn::asio::Mockio_context_base> mock_io_context = std::make_shared<NiceMock<bzn::asio::Mockio_context_base>>();
 
     std::unique_ptr<bzn::asio::Mocksteady_timer_base> node_crash_timer =
@@ -50,8 +50,10 @@ public:
                             this->timer_waited++;
                         }
                 ));
-        
-        this->options.get_mutable_simple_options().set(bzn::option_names::CHAOS_ENABLED, "true");
+
+        this->options = std::make_shared<bzn::options>();
+
+        this->options->get_mutable_simple_options().set(bzn::option_names::CHAOS_ENABLED, "true");
     }
 
     void build_chaos()

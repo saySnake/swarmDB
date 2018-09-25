@@ -27,7 +27,6 @@ namespace
     const auto TEST_ENDPOINT =
         boost::asio::ip::tcp::endpoint{boost::asio::ip::address_v4::from_string("127.0.0.1"), 0}; // any port
 
-    auto mock_chaos = std::make_shared<NiceMock<bzn::mock_chaos_base>>();
 }
 
 
@@ -37,6 +36,7 @@ namespace  bzn
     TEST(node, test_that_node_constructed_with_invalid_address_throws)
     {
         auto io_context = std::make_shared<bzn::asio::io_context>();
+        auto mock_chaos = std::make_shared<NiceMock<bzn::mock_chaos_base>>();
 
         EXPECT_THROW(
             bzn::node(io_context, nullptr, mock_chaos, std::chrono::milliseconds(0),
@@ -52,6 +52,7 @@ namespace  bzn
         auto mock_tcp_acceptor = std::make_unique<bzn::asio::Mocktcp_acceptor_base>();
         auto mock_websocket = std::make_shared<bzn::beast::Mockwebsocket_base>();
         auto mock_steady_timer = std::make_unique<NiceMock<bzn::asio::Mocksteady_timer_base>>();
+        auto mock_chaos = std::make_shared<NiceMock<bzn::mock_chaos_base>>();
 
         // start expectations... (here we are returning a real socket)
         EXPECT_CALL(*mock_io_context, make_unique_tcp_socket()).WillRepeatedly(Invoke(
@@ -110,6 +111,7 @@ namespace  bzn
 
     TEST(node, test_that_registering_message_handler_can_only_be_done_once)
     {
+        auto mock_chaos = std::make_shared<NiceMock<bzn::mock_chaos_base>>();
         auto mock_io_context = std::make_shared<NiceMock<bzn::asio::Mockio_context_base>>();
         auto node = std::make_shared<bzn::node>(mock_io_context, nullptr, mock_chaos, std::chrono::milliseconds(0), TEST_ENDPOINT);
 
@@ -126,6 +128,7 @@ namespace  bzn
 
     TEST(node, test_that_registered_message_handler_is_invoked)
     {
+        auto mock_chaos = std::make_shared<NiceMock<bzn::mock_chaos_base>>();
         auto mock_io_context = std::make_shared<NiceMock<bzn::asio::Mockio_context_base>>();
         auto node = std::make_shared<bzn::node>(mock_io_context, nullptr, mock_chaos, std::chrono::milliseconds(0), TEST_ENDPOINT);
 
@@ -157,6 +160,7 @@ namespace  bzn
 
     TEST(node, test_that_send_msg_connects_and_performs_handshake)
     {
+        auto mock_chaos = std::make_shared<NiceMock<bzn::mock_chaos_base>>();
         auto mock_io_context = std::make_shared<bzn::asio::Mockio_context_base>();
         auto mock_websocket = std::make_shared<bzn::beast::Mockwebsocket_base>();
         auto mock_socket = std::make_unique<bzn::asio::Mocktcp_socket_base>();
@@ -210,6 +214,7 @@ namespace  bzn
     // ./node_tests --gtest_also_run_disabled_tests --gtest_filter=node.DISABLED_test_node
     TEST(node, DISABLED_test_node)
     {
+        auto mock_chaos = std::make_shared<NiceMock<bzn::mock_chaos_base>>();
         auto io_context = std::make_shared<bzn::asio::io_context>();
         auto websocket = std::make_shared<bzn::beast::websocket>();
 

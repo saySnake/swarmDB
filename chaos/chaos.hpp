@@ -25,7 +25,7 @@ namespace bzn
 class chaos : public chaos_base, public std::enable_shared_from_this<chaos>
     {
     public:
-        chaos(std::shared_ptr<bzn::asio::io_context_base> io_context, const bzn::options_base& options);
+        chaos(std::shared_ptr<bzn::asio::io_context_base> io_context, std::shared_ptr<bzn::options_base> options);
 
         void start() override;
 
@@ -43,7 +43,7 @@ class chaos : public chaos_base, public std::enable_shared_from_this<chaos>
         std::once_flag start_once;
 
         const std::shared_ptr<bzn::asio::io_context_base> io_context;
-        const bzn::options_base& options;
+        const std::shared_ptr<bzn::options_base> options;
 
         std::unique_ptr<bzn::asio::steady_timer_base> crash_timer;
 
