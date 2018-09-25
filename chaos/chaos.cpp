@@ -17,6 +17,7 @@
 #include <chaos/chaos.hpp>
 #include <options/simple_options.hpp>
 #include <include/boost_asio_beast.hpp>
+#include <include/bluzelle.hpp>
 
 using namespace bzn;
 using namespace bzn::option_names;

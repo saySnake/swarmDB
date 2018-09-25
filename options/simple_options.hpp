@@ -15,6 +15,7 @@
 #pragma once
 
 #include <boost/program_options.hpp>
+#include <boost/program_options/variables_map.hpp>
 #include <string>
 
 namespace bzn::option_names
