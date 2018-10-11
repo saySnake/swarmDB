@@ -29,21 +29,19 @@
 using namespace bzn;
 
 pbft::pbft(
-    std::shared_ptr<bzn::node_base> node
-    , std::shared_ptr<bzn::asio::io_context_base> io_context
-    , const bzn::peers_list_t& peers
-    , bzn::uuid_t uuid
-    , std::shared_ptr<pbft_service_base> service
-    , std::shared_ptr<pbft_failure_detector_base> failure_detector
-    , std::shared_ptr<bzn::crypto_base> crypto
-    )
-    : node(std::move(node))
-    , uuid(std::move(uuid))
-    , service(std::move(service))
-    , failure_detector(std::move(failure_detector))
-    , io_context(io_context)
-    , audit_heartbeat_timer(this->io_context->make_unique_steady_timer())
-    , crypto(std::move(crypto))
+        std::shared_ptr<bzn::node_base> node
+        , std::shared_ptr<bzn::asio::io_context_base> io_context
+        , const bzn::peers_list_t& peers
+        , bzn::uuid_t uuid
+        , std::shared_ptr<pbft_service_base> service
+        , std::shared_ptr<pbft_failure_detector_base> failure_detector
+        , std::shared_ptr<bzn::crypto_base> crypto)
+: node(std::move(node))
+        , uuid(std::move(uuid))
+        , service(std::move(service))
+        , failure_detector(std::move(failure_detector))
+        , io_context(io_context)
+        , audit_heartbeat_timer(this->io_context->make_unique_steady_timer()), crypto(std::move(crypto))
 {
     if (peers.empty())
     {
@@ -993,7 +991,7 @@ pbft::handle_database_message(const bzn::json_message& json, std::shared_ptr<bzn
     *response.mutable_header() = msg.db().header();
 
     pbft_request req;
-    *req.mutable_operation() = msg.db();
+    req.set_operation(json.toStyledString());
     req.set_timestamp(this->now()); //TODO: the timestamp needs to come from the client
 
     this->handle_request(req, json, session);
