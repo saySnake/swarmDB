@@ -22,10 +22,10 @@
 
 using namespace bzn;
 
-index_t pbft_configuration::next_index = 0;
+pbft_configuration::index_t pbft_configuration::next_index = 1;
 
 pbft_configuration::pbft_configuration()
-: index(++next_index)
+: index(next_index++)
 {
     this->sorted_peers = std::make_shared<std::vector<bzn::peer_address_t>>();
 }
@@ -34,7 +34,7 @@ pbft_configuration
 pbft_configuration::fork() const
 {
     pbft_configuration forked(*this);
-    forked.index = ++next_index;
+    forked.index = next_index++;
     return forked;
 }
 
@@ -90,7 +90,7 @@ pbft_configuration::to_json() const
     return json;
 }
 
-index_t
+pbft_configuration::index_t
 pbft_configuration::get_index() const
 {
     return this->index;

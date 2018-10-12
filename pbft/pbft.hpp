@@ -19,6 +19,7 @@
 #include <pbft/pbft_base.hpp>
 #include <pbft/pbft_failure_detector.hpp>
 #include <pbft/pbft_service_base.hpp>
+#include <pbft/pbft_configuration.hpp>
 #include <status/status_provider_base.hpp>
 #include <crypto/crypto_base.hpp>
 #include <mutex>
@@ -123,6 +124,9 @@ namespace bzn
         void clear_checkpoint_messages_until(const checkpoint_t&);
         void clear_operations_until(const checkpoint_t&);
 
+        const std::shared_ptr<const std::vector<bzn::peer_address_t>> current_configuration_ptr() const;
+        const std::vector<bzn::peer_address_t>& current_configuration() const;
+
         // Using 1 as first value here to distinguish from default value of 0 in protobuf
         uint64_t view = 1;
         uint64_t next_issued_sequence_number = 1;
@@ -131,8 +135,6 @@ namespace bzn
         uint64_t high_water_mark;
 
         std::shared_ptr<bzn::node_base> node;
-
-        std::vector<bzn::peer_address_t> peer_index;
 
         const bzn::uuid_t uuid;
         std::shared_ptr<pbft_service_base> service;
@@ -156,6 +158,8 @@ namespace bzn
 
         std::set<checkpoint_t> local_unstable_checkpoints;
         std::map<checkpoint_t, std::unordered_map<uuid_t, std::string>> unstable_checkpoint_proofs;
+        std::map<pbft_configuration::index_t, pbft_configuration> configurations;
+        pbft_configuration::index_t current_configuration_index;
 
         std::shared_ptr<crypto_base> crypto;
     };

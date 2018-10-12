@@ -25,11 +25,12 @@
 namespace bzn
 {
     using hash_t = std::string;
-    using index_t = uint64_t;
 
     class pbft_configuration
     {
     public:
+        typedef uint64_t index_t;
+
         pbft_configuration();
 
         // create a new configuration based on the current one

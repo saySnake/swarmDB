@@ -35,7 +35,6 @@ namespace {
     TEST_F(pbft_configuration_test, initially_empty)
     {
         EXPECT_EQ(this->cfg.get_peers()->size(), 0U);
-        EXPECT_EQ(this->cfg.get_index(), 1U);
     }
 
     TEST_F(pbft_configuration_test, single_add_succeeds)
