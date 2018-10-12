@@ -153,12 +153,16 @@ pbft_configuration::remove_peer(const bzn::peer_address_t& peer)
 void
 pbft_configuration::cache_sorted_peers()
 {
+    // peer_address_t contains const members so sorting requires some juggling.
+    // first copy peers into a vector so we can access them via an index
     std::vector<peer_address_t> unordered_peers_list;
     std::copy(this->peers.begin(), this->peers.end(), std::back_inserter(unordered_peers_list));
 
+    // now create a vector of indices from 1..n
     std::vector<size_t> indicies(peers.size());
     std::iota(indicies.begin(), indicies.end(), 0);
 
+    // now sort the indices based on the peer uuids in the vector
     std::sort(indicies.begin(), indicies.end(),
         [&unordered_peers_list](const auto& i1, const auto& i2)
         {
@@ -166,6 +170,7 @@ pbft_configuration::cache_sorted_peers()
         }
     );
 
+    // and finally get each peer sequentially by sorted index and add to the destination vector
     auto sorted = std::make_shared<std::vector<bzn::peer_address_t>>();
     std::transform(indicies.begin(), indicies.end(), std::back_inserter(*sorted),
         [&unordered_peers_list](auto& peer_index)
