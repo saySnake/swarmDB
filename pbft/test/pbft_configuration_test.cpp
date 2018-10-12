@@ -35,6 +35,7 @@ namespace {
     TEST_F(pbft_configuration_test, initially_empty)
     {
         EXPECT_EQ(this->cfg.get_peers()->size(), 0U);
+        EXPECT_EQ(this->cfg.get_index(), 1U);
     }
 
     TEST_F(pbft_configuration_test, single_add_succeeds)
@@ -43,11 +44,27 @@ namespace {
         EXPECT_EQ(this->cfg.get_peers()->size(), 1U);
     }
 
+    TEST_F(pbft_configuration_test, remove_succeeds)
+    {
+        EXPECT_TRUE(this->cfg.add_peer(TEST_PEER_LIST[0]));
+        EXPECT_EQ(this->cfg.get_peers()->size(), 1U);
+        EXPECT_TRUE(this->cfg.remove_peer(TEST_PEER_LIST[0]));
+        EXPECT_EQ(this->cfg.get_peers()->size(), 0U);
+    }
+
     TEST_F(pbft_configuration_test, duplicate_add_fails)
     {
         EXPECT_TRUE(this->cfg.add_peer(TEST_PEER_LIST[0]));
         EXPECT_EQ(this->cfg.get_peers()->size(), 1U);
         EXPECT_FALSE(this->cfg.add_peer(TEST_PEER_LIST[0]));
+        EXPECT_EQ(this->cfg.get_peers()->size(), 1U);
+    }
+
+    TEST_F(pbft_configuration_test, bad_remove_fails)
+    {
+        EXPECT_TRUE(this->cfg.add_peer(TEST_PEER_LIST[0]));
+        EXPECT_EQ(this->cfg.get_peers()->size(), 1U);
+        EXPECT_FALSE(this->cfg.remove_peer(TEST_PEER_LIST[1]));
         EXPECT_EQ(this->cfg.get_peers()->size(), 1U);
     }
 
@@ -60,7 +77,7 @@ namespace {
         }
     }
 
-    TEST_F(pbft_configuration_test, test_sort_order)
+    TEST_F(pbft_configuration_test, sort_order)
     {
         // add the peers in reverse order (assumes TEST_PEER_LIST is sorted)
         for (auto it = TEST_PEER_LIST.rbegin(); it != TEST_PEER_LIST.rend(); it++)
@@ -72,7 +89,7 @@ namespace {
         check_equal(*peers, TEST_PEER_LIST);
     }
 
-    TEST_F(pbft_configuration_test, test_to_from_json)
+    TEST_F(pbft_configuration_test, to_from_json)
     {
         for (const auto& peer : TEST_PEER_LIST)
         {
@@ -95,5 +112,21 @@ namespace {
         bzn::pbft_configuration cfg2(this->cfg.fork());
         EXPECT_TRUE(this->cfg.get_index() < cfg2.get_index());
         check_equal(*(cfg2.get_peers()), TEST_PEER_LIST);
+    }
+
+    TEST_F(pbft_configuration_test, reject_invalid_peer)
+    {
+        EXPECT_FALSE(this->cfg.add_peer(bzn::peer_address_t("", 8081, 8881, "name1", "uuid1")));
+        EXPECT_FALSE(this->cfg.add_peer(bzn::peer_address_t("127.0.0.1", 0, 8881, "name1", "uuid1")));
+        EXPECT_FALSE(this->cfg.add_peer(bzn::peer_address_t("127.0.0.1", 8081, 0, "name1", "uuid1")));
+        EXPECT_FALSE(this->cfg.add_peer(bzn::peer_address_t("127.0.0.1", 8081, 8881, "", "uuid1")));
+        EXPECT_FALSE(this->cfg.add_peer(bzn::peer_address_t("127.0.0.1", 8081, 8881, "name1", "")));
+        EXPECT_TRUE(this->cfg.add_peer(bzn::peer_address_t("127.0.0.1", 8081, 8881, "name1", "uuid1")));
+
+        EXPECT_FALSE(this->cfg.add_peer(bzn::peer_address_t("127.0.0.1", 8082, 8882, "name2", "uuid1")));
+        EXPECT_FALSE(this->cfg.add_peer(bzn::peer_address_t("127.0.0.1", 8082, 8882, "name1", "uuid2")));
+        EXPECT_FALSE(this->cfg.add_peer(bzn::peer_address_t("127.0.0.1", 8082, 8881, "name2", "uuid2")));
+        EXPECT_FALSE(this->cfg.add_peer(bzn::peer_address_t("127.0.0.1", 8081, 8882, "name2", "uuid2")));
+        EXPECT_TRUE(this->cfg.add_peer(bzn::peer_address_t("127.0.0.1", 8082, 8882, "name2", "uuid2")));
     }
 }
