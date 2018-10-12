@@ -27,19 +27,19 @@
 using namespace bzn;
 
 pbft::pbft(
-        std::shared_ptr<bzn::node_base> node
-        , std::shared_ptr<bzn::asio::io_context_base> io_context
-        , const bzn::peers_list_t& peers
-        , bzn::uuid_t uuid
-        , std::shared_ptr<pbft_service_base> service
-        , std::shared_ptr<pbft_failure_detector_base> failure_detector
-)
-        : node(std::move(node))
-        , uuid(std::move(uuid))
-        , service(std::move(service))
-        , failure_detector(std::move(failure_detector))
-        , io_context(io_context)
-        , audit_heartbeat_timer(this->io_context->make_unique_steady_timer())
+    std::shared_ptr<bzn::node_base> node
+    , std::shared_ptr<bzn::asio::io_context_base> io_context
+    , const bzn::peers_list_t& peers
+    , bzn::uuid_t uuid
+    , std::shared_ptr<pbft_service_base> service
+    , std::shared_ptr<pbft_failure_detector_base> failure_detector
+    )
+    : node(std::move(node))
+    , uuid(std::move(uuid))
+    , service(std::move(service))
+    , failure_detector(std::move(failure_detector))
+    , io_context(io_context)
+    , audit_heartbeat_timer(this->io_context->make_unique_steady_timer())
 {
     if (peers.empty())
     {
@@ -205,6 +205,13 @@ pbft::handle_message(const pbft_msg& msg, const wrapped_bzn_msg& original_msg)
         case PBFT_MSG_CHECKPOINT :
             this->handle_checkpoint(msg, original_msg);
             break;
+        case PBFT_MSG_VIEWCHANGE :
+            this->handle_viewchange(msg, original_msg);
+            break;
+        case PBFT_MSG_NEWVIEW :
+            this->handle_newview(msg, original_msg);
+            break;
+
         default :
             throw std::runtime_error("Unsupported message type");
     }
@@ -213,6 +220,12 @@ pbft::handle_message(const pbft_msg& msg, const wrapped_bzn_msg& original_msg)
 bool
 pbft::preliminary_filter_msg(const pbft_msg& msg)
 {
+    if (!this->is_view_valid()  && ( msg.type() != PBFT_MSG_CHECKPOINT || msg.type() != PBFT_MSG_VIEWCHANGE || msg.type() != PBFT_MSG_NEWVIEW) )
+    {
+        LOG(debug) << "Dropping message because local view is invalid";
+        return false;
+    }
+
     auto t = msg.type();
     if (t == PBFT_MSG_PREPREPARE || t == PBFT_MSG_PREPARE || t == PBFT_MSG_COMMIT)
     {
@@ -601,6 +614,47 @@ pbft::handle_failure()
     LOG(fatal) << "Failure detected; view changes not yet implemented\n";
     this->notify_audit_failure_detected();
     //TODO: KEP-332
+    this->view_is_valid = false;
+
+    // at this point the timer has expired (i expires in view v)
+    // doesn't matter: we must be a backup !this->is_primary()
+    // Create  view-change message.
+    pbft_msg view_change;
+
+    // <VIEW-CHANGE v+1, n, C, P, i>_sigma_i
+    view_change.set_type(PBFT_MSG_VIEWCHANGE);
+
+    // v + 1 = this->view + 1
+    view_change.set_view(this->view + 1);
+
+    // n = sequence # of last valid checkpoint
+    //   = this->stable_checkpoint.first
+    view_change.set_sequence(this->latest_stable_checkpoint().first);
+
+    // C = a set of local 2*f + 1 valid checkpoint messages
+    //   = ?? I can get: **** this->stable_checkpoint_proof is a set of 2*f+1 map of uuid's to strings <- is this correct?
+    for (const auto& msg : this->stable_checkpoint_proof)
+    {
+        view_change.add_checkpoint_messages(msg.second);
+    }
+
+    // P = a set (of client requests) containing a set P_m  for each request m that prepared at i with a sequence # higher
+    //     than n
+    // P_m = the pre prepare and the 2 f + 1 prepares
+    //            get the set of operations, frome each operation get the messages..
+
+    // std::set<std::shared_ptr<bzn::pbft_operation>>
+    const auto operations = this->prepared_operations_since_last_checkpoint();
+    for(const auto operation : operations)
+    {
+        prepared_proof* preprep_msg = view_change.add_prepared_proofs();
+        preprep_msg->set_pre_prepare(operation->get_preprepare());
+        for (const auto &prepared : operation->get_prepares())
+        {
+            preprep_msg->add_prepare(prepared);
+        }
+    }
+    this->broadcast(this->wrap_message(view_change));
 }
 
 void
@@ -808,7 +862,7 @@ pbft::handle_database_message(const bzn::json_message& json, std::shared_ptr<bzn
     *response.mutable_header() = msg.db().header();
 
     pbft_request req;
-    req.set_operation(json.toStyledString());
+    *req.mutable_operation() = msg.db();
     req.set_timestamp(0); //TODO: KEP-611
 
     this->handle_request(req, json, session);
@@ -829,6 +883,231 @@ pbft::get_high_water_mark()
     return this->high_water_mark;
 }
 
+bool
+pbft::is_view_valid() const
+{
+    return this->view_is_valid;
+}
+
+bool
+pbft::is_valid_viewchange_message(const pbft_msg& msg) const
+{
+    return (msg.type() == PBFT_MSG_VIEWCHANGE) && (msg.view() == this->view + 1);
+}
+
+bool
+pbft::is_valid_newview_message(const pbft_msg& msg) const
+{
+    // the view change messages are valid
+    auto V = msg.viewchange_messages();
+    LOG(debug) << " Are the viewchange messages valid: [" << V.size() << "]";
+    for(const auto& v : V)
+    {
+        pbft_msg viewchange;
+        viewchange.ParseFromString(v);
+        if ( (viewchange.type() != PBFT_MSG_VIEWCHANGE) || (viewchange.view()!= this->get_view()+1) )
+        {
+            return false;
+        }
+    }
+    //      - The set O is correct
+    //          - None of the messages it knows about are lost ???
+//    auto O = msg.preprepare_messages();
+//    LOG(debug) << " Are the prepare messages, O, valid: [" << V.size() << "]";
+//    // ?? O.size() == this->prepared_operations_since_last_checkpoint().size()
+//
+//    for(const auto& o : O)
+//    {
+//        LOG (debug) << o;
+//
+//    }
+
+    return (msg.type() == PBFT_MSG_NEWVIEW) && (msg.view() == this->view + 1);
+}
+
+
+void
+pbft::primary_handles_viewchange(const pbft_msg& /*msg*/)
+{
+    if (this->valid_view_change_messages.size() == 2 * this->max_faulty_nodes())
+    {
+        LOG(debug) << "Primary is handling viewchange";
+        // KEP-633 - When the primary of view v+1 receives 2f valid view change messages
+        // for view v+1,
+
+        pbft_msg new_view;
+        //       It sends a message <NEWVIEW, v+1, V, O> where
+        new_view.set_type(PBFT_MSG_NEWVIEW);
+        //          v+1 is the new view index
+        new_view.set_view(this->view + 1);
+
+        //          V is the set of 2f+1 view change messages
+        for (const auto &viewchange : this->valid_view_change_messages)
+        {
+            new_view.add_viewchange_messages(viewchange);
+        }
+
+
+        // TODO:
+        //          O is a set of prepare messages computed by the new primary as follows:
+        //              - Each message in some P from a view-change after the latest stable
+        //              checkpoint is given a new preprepare in the new view
+        //              - If there are gaps, they are filled with null requests
+        //              - These messages are added to the log as normal
+
+
+        // new_view.add_prepared_proofs()
+
+
+
+
+
+
+        this->broadcast(this->wrap_message(new_view));
+
+
+        LOG(debug) << "Primary is moving to view + 1";
+        this->view += 1;
+        this->view_is_valid = true;
+        this->valid_view_change_messages.clear();
+    }
+    else
+    {
+        LOG(debug) << "Primary has not recieved enough viewchange messages: no action performed";
+    }
+}
+
+
+void
+pbft::replica_handles_viewchange(const pbft_msg&/*msg*/)
+{
+    if (this->valid_view_change_messages.size() == (this->max_faulty_nodes() + 1) )
+    {
+        LOG(debug) << "Replica has recieved enough view change messages";
+        // TODO: DRY Refactor the following view_change, it is duplicated in handle_failure
+        pbft_msg view_change;
+        // <VIEW-CHANGE v+1, n, C, P, i>_sigma_i
+        view_change.set_type(PBFT_MSG_VIEWCHANGE);
+
+        // v + 1 = this->view + 1
+        view_change.set_view(this->view + 1);
+
+        // n = sequence # of last valid checkpoint
+        //   = this->stable_checkpoint.first
+
+        auto x = this->latest_stable_checkpoint().first;
+        LOG(debug) << "\t***this->latest_stable_checkpoint().first:[" << x << "]";
+
+        view_change.set_sequence(this->latest_stable_checkpoint().first);
+
+        // C = a set of local 2*f + 1 valid checkpoint messages
+        //   = ?? I can get: **** this->stable_checkpoint_proof is a set of 2*f+1 map of uuid's to strings <- is this correct?
+        for (const auto& msg : this->stable_checkpoint_proof)
+        {
+            view_change.add_checkpoint_messages(msg.second);
+        }
+
+        // P = a set (of client requests) containing a set P_m  for each request m that prepared at i with a sequence # higher
+        //     than n
+        // P_m = the pre prepare and the 2 f + 1 prepares
+        //            get the set of operations, frome each operation get the messages..
+
+
+
+
+        // i, id of backup
+        view_change.set_sender(this->get_uuid());
+
+
+        // std::set<std::shared_ptr<bzn::pbft_operation>> prepared_operations_since_last_checkpoint()
+        this->broadcast(this->wrap_message(view_change));
+    }
+    else
+    {
+        LOG(debug) << "Replica has not recieved enough view change messages";
+    }
+
+}
+
+void
+pbft::handle_viewchange(const pbft_msg& msg, const wrapped_bzn_msg& original_msg)
+{
+    LOG(debug) << "Handle_viewchange: " << msg.SerializeAsString()  << " -- " << original_msg.SerializeAsString();
+
+
+    // TODO: Dry this by moving it one block up.
+    // Does this need to be a valid view? What is a valid vew change messsage? For now check that it is for view + 1;
+    if (this->is_valid_viewchange_message(msg))
+    {
+        LOG(debug) << "Recieved a valid viewchange message";
+        this->valid_view_change_messages.emplace(msg.SerializeAsString());
+    }
+    else
+    {
+        LOG(debug) << "The viewchange message was invalid, not adding it";
+    }
+
+    if (this->is_primary())
+    {
+        this->primary_handles_viewchange(msg);
+    }
+    else
+    {
+        this->replica_handles_viewchange(msg);
+    }
+}
+
+
+void
+pbft::replica_handles_newview(const pbft_msg& msg)
+{
+    LOG(debug) << "Backup handling a newview";
+    // KEP-634 - A backup accepts a new-view message for view v+1 if
+    //      - the view change messages are valid
+    if(this->is_valid_newview_message(msg))
+    {
+        LOG(debug) << "\t***new view message is valid.";
+        // the set O is is correct
+        // - get the preprepares from the newview message
+
+
+        // O
+        //const auto preprepare_messages = msg.prepared_proofs(); // pointer to message prepared_proof
+        std::unordered_set<std::string> pre_prepares;
+        for( int i = 0; i < msg.prepared_proofs_size(); ++i)
+        {
+            auto proof = msg.prepared_proofs(i).pre_prepare();
+            pre_prepares.insert(proof);
+        }
+
+        //the preprepares that this replica knows about is
+
+        //this->accepted_preprepares;
+        // we need to compare these to O
+
+        //      - It then moves to view v+1,
+        this->view = msg.view();
+        // processing the preprepares in O as normal. ???
+
+        // DO I need to send the set O to be processed?
+    }
+}
+
+void
+pbft::handle_newview(const pbft_msg& msg, const wrapped_bzn_msg& original_msg)
+{
+    LOG(debug) << "Handle_newview" << msg.SerializeAsString()  << " -- " << original_msg.SerializeAsString();
+    if (this->is_primary())
+    {
+        LOG(debug) << "Primaries don't handle newview messsages";
+    }
+    else
+    {
+        this->replica_handles_newview(msg);
+    }
+
+}
+
 std::string
 pbft::get_name()
 {
@@ -840,7 +1119,6 @@ bzn::json_message
 pbft::get_status()
 {
     bzn::json_message status;
-
     std::lock_guard<std::mutex> lock(this->pbft_lock);
 
     status["outstanding_operations_count"] = uint64_t(this->outstanding_operations_count());
@@ -969,6 +1247,24 @@ bool
 pbft::proposed_config_is_acceptable(std::shared_ptr<pbft_configuration> /* config */)
 {
     return true;
+}
+
+std::set<std::shared_ptr<bzn::pbft_operation>>
+pbft::prepared_operations_since_last_checkpoint()
+{
+    std::set<std::shared_ptr<bzn::pbft_operation>> retval;
+    // TODO functional filter...
+    for (const auto& p : this->operations)
+    {
+        if (p.second->is_prepared() && !p.second->is_committed())
+        {
+            if (p.second->sequence > this->latest_stable_checkpoint().first)
+            {
+                retval.emplace(p.second);
+            }
+        }
+    }
+    return retval;
 }
 
 bool

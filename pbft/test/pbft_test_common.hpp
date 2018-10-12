@@ -98,6 +98,8 @@ namespace bzn::test
     bool is_commit(std::shared_ptr<std::string> msg);
     bool is_checkpoint(std::shared_ptr<std::string> msg);
     bool is_audit(std::shared_ptr<std::string> msg);
+    bool is_viewchange(std::shared_ptr<std::string> wrapped_msg);
+    bool is_newview(std::shared_ptr<std::string> wrapped_msg);
 
     wrapped_bzn_msg from(uuid_t uuid);
 }

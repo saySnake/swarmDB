@@ -70,11 +70,11 @@ def send_request(node, uuid, msg, loop=False, ws=None):
         req_outer["bzn-api"] = "pbft";
         req_outer["pbft-data"] = base64.b64encode(msg_outer.SerializeToString())
 
-        print("Sending: \n{}".format(msg_outer))
-        ws.send(json.dumps(req_outer))
-
+        print("Sending: \n{}".format(msg_outer).expandtabs(4))
+        ws.send_binary(msg_outer.SerializeToString())
+        return
     else:
-        print("Sending: \n{}".format(msg))
+        print("Sending: \n{}".format(msg).expandtabs(4))
         ws.send(json.dumps(req))
 
     print("-" * 60 + '\n')

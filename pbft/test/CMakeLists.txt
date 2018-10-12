@@ -10,7 +10,10 @@ set(test_srcs
     pbft_join_leave_test.cpp
     pbft_proto_test.cpp
     pbft_catchup_test.cpp
-    database_pbft_service_test.cpp)
+    database_pbft_service_test.cpp
+    pbft_proto_test.cpp
+    pbft_newview_test.cpp)
+
 set(test_libs pbft ${Protobuf_LIBRARIES} bootstrap storage)
 
 add_gmock_test(pbft)

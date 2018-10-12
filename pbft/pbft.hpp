@@ -15,7 +15,9 @@
 #pragma once
 
 #include <include/bluzelle.hpp>
+#include <include/boost_asio_beast.hpp>
 #include <pbft/pbft_base.hpp>
+#include <pbft/pbft_failure_detector.hpp>
 #include <pbft/pbft_service_base.hpp>
 #include <pbft/pbft_config_store.hpp>
 #include <status/status_provider_base.hpp>
@@ -39,7 +41,7 @@ namespace bzn
     using request_hash_t = std::string;
     using checkpoint_t = std::pair<uint64_t, bzn::hash_t>;
 
-    class pbft final : public bzn::pbft_base, public std::enable_shared_from_this<pbft>
+    class pbft final : public bzn::pbft_base, public bzn::status_provider_base, public std::enable_shared_from_this<pbft>
     {
     public:
         pbft(
@@ -70,12 +72,25 @@ namespace bzn
         void set_audit_enabled(bool setting);
 
         checkpoint_t latest_stable_checkpoint() const;
+
         checkpoint_t latest_checkpoint() const;
+
         size_t unstable_checkpoints_count() const;
 
         uint64_t get_low_water_mark();
 
         uint64_t get_high_water_mark();
+
+        std::string get_name() override;
+
+        bool is_view_valid() const;
+
+        bzn::json_message get_status() override;
+
+        bool is_valid_viewchange_message(const pbft_msg& msg) const;
+        bool is_valid_newview_message(const pbft_msg& msg) const;
+
+        uint64_t get_view() const { return this->view; }
 
     private:
         std::shared_ptr<pbft_operation> find_operation(uint64_t view, uint64_t sequence, const pbft_request& request);
@@ -91,6 +106,12 @@ namespace bzn
         void handle_checkpoint(const pbft_msg& msg, const wrapped_bzn_msg& original_msg);
         void handle_join_or_leave(const pbft_membership_msg& msg);
         void handle_config_message(const pbft_msg& msg, const std::shared_ptr<pbft_operation>& op);
+        void handle_viewchange(const pbft_msg& msg, const wrapped_bzn_msg& original_msg);
+        void handle_newview(const pbft_msg& msg, const wrapped_bzn_msg& original_msg);
+
+        void primary_handles_viewchange(const pbft_msg& msg);
+        void replica_handles_viewchange(const pbft_msg& msg);
+        void replica_handles_newview(const pbft_msg& msg);
 
         void maybe_advance_operation_state(const std::shared_ptr<pbft_operation>& op);
         void do_preprepare(const std::shared_ptr<pbft_operation>& op);
@@ -137,6 +158,7 @@ namespace bzn
         // Using 1 as first value here to distinguish from default value of 0 in protobuf
         uint64_t view = 1;
         uint64_t next_issued_sequence_number = 1;
+        bool     view_is_valid = true;
         uint64_t first_sequence_to_execute = 0;
         bool joined_swarm = false;
 
@@ -151,6 +173,8 @@ namespace bzn
         std::shared_ptr<pbft_failure_detector_base> failure_detector;
 
         std::mutex pbft_lock;
+
+        std::set<std::shared_ptr<bzn::pbft_operation>> prepared_operations_since_last_checkpoint();
 
         std::map<bzn::operation_key_t, std::shared_ptr<bzn::pbft_operation>> operations;
         std::map<bzn::log_key_t, bzn::operation_key_t> accepted_preprepares;
@@ -180,6 +204,11 @@ namespace bzn
         friend class pbft_proto_test;
 
         std::shared_ptr<crypto_base> crypto;
+
+        std::set<std::string> valid_view_change_messages; // should this be in operation?
+        std::set<std::string> valid_new_view_messages; // should this be in operation?
+
+        FRIEND_TEST(pbft_test, full_test);
     };
 
 } // namespace bzn

@@ -129,8 +129,5 @@ namespace bzn
         prepare_for_checkpoint(100);
         run_transaction_through_primary();
         stabilize_checkpoint(100);
-
-
-
     }
 }

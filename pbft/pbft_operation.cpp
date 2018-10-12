@@ -27,9 +27,10 @@ pbft_operation::pbft_operation(uint64_t view, uint64_t sequence, pbft_request re
 }
 
 void
-pbft_operation::record_preprepare(const wrapped_bzn_msg& /*encoded_preprepare*/)
+pbft_operation::record_preprepare(const wrapped_bzn_msg& encoded_preprepare)
 {
     this->preprepare_seen = true;
+    this->preprepare_message = encoded_preprepare.SerializeAsString();
 }
 
 bool
@@ -41,8 +42,8 @@ pbft_operation::has_preprepare()
 void
 pbft_operation::record_prepare(const wrapped_bzn_msg& encoded_prepare)
 {
-    // TODO: Save message
     this->prepares_seen.insert(encoded_prepare.sender());
+    this->prepare_messages.insert(std::make_pair(encoded_prepare.sender(), encoded_prepare.payload()));
 }
 
 size_t
