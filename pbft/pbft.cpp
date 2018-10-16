@@ -194,6 +194,9 @@ pbft::handle_message(const pbft_msg& msg, const wrapped_bzn_msg& original_msg)
         case PBFT_MSG_CHECKPOINT :
             this->handle_checkpoint(msg, original_msg);
             break;
+        case PBFT_MSG_JOIN :
+            this->handle_join(msg);
+            break;
         default :
             throw std::runtime_error("Unsupported message type");
     }
@@ -301,6 +304,35 @@ pbft::handle_commit(const pbft_msg& msg, const wrapped_bzn_msg& original_msg)
 
     op->record_commit(original_msg);
     this->maybe_advance_operation_state(op);
+}
+
+void
+pbft::handle_join(const pbft_msg& msg)
+{
+    if (msg.has_peer_info())
+    {
+        // build a peer_address_t from the message
+        auto const &peer_info = msg.peer_info();
+        bzn::peer_address_t peer(peer_info.host(), static_cast<uint16_t>(peer_info.port()),
+            static_cast<uint16_t>(peer_info.http_port()), peer_info.name(), peer_info.uuid());
+
+        // see if we can add this peer into a newly forked configuration
+        pbft_configuration config = this->current_configuration().fork();
+        if (config.add_peer(peer))
+        {
+            if (!this->add_configuration(config))
+            {
+                assert(false);
+            }
+
+            this->broadcast_new_configuration(config, msg.request());
+        }
+    }
+    else
+    {
+        LOG(debug) << "Malformed join message";
+    }
+
 }
 
 void
@@ -749,4 +781,17 @@ const std::vector<bzn::peer_address_t>&
 pbft::current_peers() const
 {
     return *(this->current_peers_ptr());
+}
+
+void
+pbft::broadcast_new_configuration(const pbft_configuration& config, const pbft_request& req)
+{
+    const uint64_t request_seq = this->next_issued_sequence_number++;
+    auto op = this->find_operation(this->view, request_seq, req);
+    pbft_msg msg = this->common_message_setup(op, PBFT_MSG_NEW_CONFIG);
+    std::string conf_str = config.to_json().toStyledString();
+    msg.set_config(conf_str);
+
+    this->broadcast(this->wrap_message(msg, "new_config"));
+
 }

@@ -126,6 +126,7 @@ namespace bzn
 
         std::shared_ptr<const std::vector<bzn::peer_address_t>> current_peers_ptr() const;
         const std::vector<bzn::peer_address_t>& current_peers() const;
+        void broadcast_new_configuration(const pbft_configuration& config, const pbft_request& req);
 
         // Using 1 as first value here to distinguish from default value of 0 in protobuf
         uint64_t view = 1;
