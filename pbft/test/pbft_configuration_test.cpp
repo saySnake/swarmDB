@@ -144,10 +144,22 @@ namespace {
     TEST_F(pbft_config_store_test, add_test)
     {
         auto config = std::make_shared<bzn::pbft_configuration>();
-        this->store.add(config);
+        EXPECT_TRUE(this->store.add(config));
 
         auto config2 = this->store.get(config->get_hash());
         ASSERT_TRUE(config2 != nullptr);
         EXPECT_TRUE(*config == *config2);
     }
+
+    TEST_F(pbft_config_store_test, enable_test)
+    {
+        auto config = std::make_shared<bzn::pbft_configuration>();
+        EXPECT_TRUE(this->store.add(config));
+        EXPECT_FALSE(this->store.is_enabled(config->get_hash()));
+        EXPECT_TRUE(this->store.enable(config->get_hash()));
+        EXPECT_TRUE(this->store.is_enabled(config->get_hash()));
+        EXPECT_TRUE(this->store.enable(config->get_hash(), false));
+        EXPECT_FALSE(this->store.is_enabled(config->get_hash()));
+    }
+
 }

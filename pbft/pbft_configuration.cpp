@@ -234,7 +234,7 @@ pbft_config_store::add(pbft_configuration::shared_const_ptr config)
 bool
 pbft_config_store::set_current(const hash_t& hash)
 {
-    pbft_configuration::shared_const_ptr config = this->get(hash);
+    auto config = this->get(hash);
     if (config)
     {
         this->current_index = config->get_index();
@@ -254,7 +254,7 @@ pbft_config_store::remove_prior_to(pbft_configuration::index_t index)
 pbft_config_store::config_map::const_iterator
 pbft_config_store::find_by_hash(hash_t hash) const
 {
-    pbft_config_store::config_map::const_iterator config = std::find_if(this->configs.begin(), this->configs.end(),
+    auto config = std::find_if(this->configs.begin(), this->configs.end(),
         [hash](auto c)
         {
             return c.second.first->get_hash() == hash;
@@ -274,7 +274,7 @@ bool
 pbft_config_store::enable(const hash_t& hash, bool val)
 {
     // can't find_by_hash here because we need a non-const
-    pbft_config_store::config_map::iterator config = std::find_if(this->configs.begin(), this->configs.end(),
+    auto config = std::find_if(this->configs.begin(), this->configs.end(),
         [hash](auto c)
         {
             return c.second.first->get_hash() == hash;
