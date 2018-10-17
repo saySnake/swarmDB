@@ -41,7 +41,7 @@ namespace bzn::test
         return false;
     }
 
-    TEST_F(pbft_test, join_request_generates_new_config)
+    TEST_F(pbft_test, join_request_generates_new_config_preprepare)
     {
         this->build_pbft();
 

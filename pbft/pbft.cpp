@@ -316,6 +316,8 @@ pbft::handle_join(const pbft_msg& msg)
         bzn::peer_address_t peer(peer_info.host(), static_cast<uint16_t>(peer_info.port()),
             static_cast<uint16_t>(peer_info.http_port()), peer_info.name(), peer_info.uuid());
 
+        // TODO - validate new peer (signature?)
+
         // see if we can add this peer into a newly forked configuration
         pbft_configuration config = this->current_configuration().fork();
         if (config.add_peer(peer))
@@ -326,6 +328,11 @@ pbft::handle_join(const pbft_msg& msg)
             }
 
             this->broadcast_new_configuration(config, msg.request());
+        }
+        else
+        {
+            // TODO - respond with negative result?
+            LOG(debug) << "Can't add new peer due to conflict";
         }
     }
     else
