@@ -124,8 +124,8 @@ namespace bzn
         void clear_checkpoint_messages_until(const checkpoint_t&);
         void clear_operations_until(const checkpoint_t&);
 
-        const std::shared_ptr<const std::vector<bzn::peer_address_t>> current_configuration_ptr() const;
-        const std::vector<bzn::peer_address_t>& current_configuration() const;
+        std::shared_ptr<const std::vector<bzn::peer_address_t>> current_peers_ptr() const;
+        const std::vector<bzn::peer_address_t>& current_peers() const;
 
         // Using 1 as first value here to distinguish from default value of 0 in protobuf
         uint64_t view = 1;
@@ -158,8 +158,7 @@ namespace bzn
 
         std::set<checkpoint_t> local_unstable_checkpoints;
         std::map<checkpoint_t, std::unordered_map<uuid_t, std::string>> unstable_checkpoint_proofs;
-        std::map<pbft_configuration::index_t, pbft_configuration> configurations;
-        pbft_configuration::index_t current_configuration_index;
+        pbft_config_store configurations;
 
         std::shared_ptr<crypto_base> crypto;
     };

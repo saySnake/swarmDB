@@ -108,9 +108,9 @@ namespace {
             this->cfg.add_peer(peer);
         }
 
-        bzn::pbft_configuration cfg2(this->cfg.fork());
-        EXPECT_TRUE(this->cfg.get_index() < cfg2.get_index());
-        check_equal(*(cfg2.get_peers()), TEST_PEER_LIST);
+        bzn::pbft_configuration::shared_const_ptr cfg2(this->cfg.fork());
+        EXPECT_TRUE(this->cfg.get_index() < cfg2->get_index());
+        check_equal(*(cfg2->get_peers()), TEST_PEER_LIST);
     }
 
     TEST_F(pbft_configuration_test, reject_invalid_peer)
@@ -127,5 +127,27 @@ namespace {
         EXPECT_FALSE(this->cfg.add_peer(bzn::peer_address_t("127.0.0.1", 8082, 8881, "name2", "uuid2")));
         EXPECT_FALSE(this->cfg.add_peer(bzn::peer_address_t("127.0.0.1", 8081, 8882, "name2", "uuid2")));
         EXPECT_TRUE(this->cfg.add_peer(bzn::peer_address_t("127.0.0.1", 8082, 8882, "name2", "uuid2")));
+    }
+
+
+    class pbft_config_store_test : public Test
+    {
+    public:
+        bzn::pbft_config_store store;
+    };
+
+    TEST_F(pbft_config_store_test, initially_empty)
+    {
+        EXPECT_EQ(this->store.current(), nullptr);
+    }
+
+    TEST_F(pbft_config_store_test, add_test)
+    {
+        auto config = std::make_shared<bzn::pbft_configuration>();
+        this->store.add(config);
+
+        auto config2 = this->store.get(config->get_hash());
+        ASSERT_TRUE(config2 != nullptr);
+        EXPECT_TRUE(*config == *config2);
     }
 }

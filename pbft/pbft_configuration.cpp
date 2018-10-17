@@ -30,11 +30,18 @@ pbft_configuration::pbft_configuration()
     this->sorted_peers = std::make_shared<std::vector<bzn::peer_address_t>>();
 }
 
-pbft_configuration
+bool
+pbft_configuration::operator==(const pbft_configuration& other) const
+{
+    return this->index == other.index && this->get_hash() == other.get_hash();
+}
+
+
+pbft_configuration::shared_const_ptr
 pbft_configuration::fork() const
 {
-    pbft_configuration forked(*this);
-    forked.index = next_index++;
+    auto forked = std::make_shared<pbft_configuration>(*this);
+    forked->index = next_index++;
     return forked;
 }
 
@@ -209,4 +216,89 @@ pbft_configuration::valid_peer(const bzn::peer_address_t &peer) const
     // TODO: validate host address?
 
     return true;
+}
+
+//============================ class pbft_config_store
+
+pbft_config_store::pbft_config_store()
+: current_index(0)
+{
+}
+
+bool
+pbft_config_store::add(pbft_configuration::shared_const_ptr config)
+{
+    return (this->configs.insert(std::make_pair(config->get_index(), std::make_pair(config, false)))).second;
+}
+
+bool
+pbft_config_store::set_current(const hash_t& hash)
+{
+    pbft_configuration::shared_const_ptr config = this->get(hash);
+    if (config)
+    {
+        this->current_index = config->get_index();
+        return true;
+    }
+
+    return false;
+}
+
+bool
+pbft_config_store::remove_prior_to(pbft_configuration::index_t index)
+{
+    (void) index;
+    return false;
+}
+
+pbft_config_store::config_map::const_iterator
+pbft_config_store::find_by_hash(hash_t hash) const
+{
+    pbft_config_store::config_map::const_iterator config = std::find_if(this->configs.begin(), this->configs.end(),
+        [hash](auto c)
+        {
+            return c.second.first->get_hash() == hash;
+        });
+
+    return config;
+}
+
+pbft_configuration::shared_const_ptr
+pbft_config_store::get(const hash_t& hash) const
+{
+    auto config = this->find_by_hash(hash);
+    return config != this->configs.end() ? config->second.first : nullptr;
+}
+
+bool
+pbft_config_store::enable(const hash_t& hash, bool val)
+{
+    // can't find_by_hash here because we need a non-const
+    pbft_config_store::config_map::iterator config = std::find_if(this->configs.begin(), this->configs.end(),
+        [hash](auto c)
+        {
+            return c.second.first->get_hash() == hash;
+        });
+
+    if (config != this->configs.end())
+    {
+        config->second.second = val;
+        return true;
+    }
+
+    return false;
+}
+
+bool
+pbft_config_store::is_enabled(const hash_t& hash) const
+{
+    auto config = this->find_by_hash(hash);
+    return config != this->configs.end() ? config->second.second : false;
+}
+
+pbft_configuration::shared_const_ptr
+pbft_config_store::current() const
+{
+    auto it = this->configs.find(this->current_index);
+    return it != this->configs.end() ? it->second.first : nullptr;
 }

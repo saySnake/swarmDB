@@ -47,18 +47,20 @@ pbft::pbft(
     }
 
     // set up the initial configuration
-    pbft_configuration config;
-    this->current_configuration_index = config.get_index();
+    auto config = std::make_shared<pbft_configuration>();
     bool config_good = true;
     for (auto p : peers)
     {
-        config_good &= config.add_peer(p);
+        config_good &= config->add_peer(p);
     }
     if (!config_good)
     {
         LOG(warning) << "One or more peers could not be added to configuration";
     }
-    this->configurations.insert(std::make_pair(this->current_configuration_index, config));
+    this->configurations.add(config);
+    hash_t hash = config->get_hash();
+    this->configurations.enable(hash);
+    this->configurations.set_current(hash);
 
     // TODO: stable checkpoint should be read from disk first: KEP-494
     this->low_water_mark = this->stable_checkpoint.first;
@@ -306,7 +308,7 @@ pbft::broadcast(const bzn::encoded_message& msg)
 {
     auto msg_ptr = std::make_shared<bzn::encoded_message>(msg);
 
-    for (const auto& peer : this->current_configuration())
+    for (const auto& peer : this->current_peers())
     {
         this->node->send_message_str(make_endpoint(peer), msg_ptr);
     }
@@ -404,7 +406,7 @@ pbft::is_primary() const
 const peer_address_t&
 pbft::get_primary() const
 {
-    return this->current_configuration()[this->view % this->current_configuration().size()];
+    return this->current_peers()[this->view % this->current_peers().size()];
 }
 
 // Find this node's record of an operation (creating a new record for it if this is the first time we've heard of it)
@@ -432,7 +434,7 @@ pbft::find_operation(uint64_t view, uint64_t sequence, const pbft_request& reque
                    << request.ShortDebugString();
 
         std::shared_ptr<pbft_operation> op = std::make_shared<pbft_operation>(view, sequence, request,
-                this->current_configuration_ptr());
+                this->current_peers_ptr());
         auto result = operations.emplace(std::piecewise_construct, std::forward_as_tuple(std::move(key)), std::forward_as_tuple(op));
 
         assert(result.second);
@@ -634,7 +636,7 @@ pbft::quorum_size() const
 size_t
 pbft::max_faulty_nodes() const
 {
-    return this->current_configuration().size()/3;
+    return this->current_peers().size()/3;
 }
 
 void
@@ -719,7 +721,7 @@ pbft::get_status()
     status["view"] = this->view;
 
     status["peer_index"] = bzn::json_message();
-    for(const auto& p : this->current_configuration())
+    for(const auto& p : this->current_peers())
     {
         bzn::json_message peer;
         peer["host"] = p.host;
@@ -733,18 +735,18 @@ pbft::get_status()
     return status;
 }
 
-const std::shared_ptr<const std::vector<bzn::peer_address_t>>
-pbft::current_configuration_ptr() const
+std::shared_ptr<const std::vector<bzn::peer_address_t>>
+pbft::current_peers_ptr() const
 {
-    auto config = this->configurations.find(this->current_configuration_index);
-    if (config != this->configurations.end())
-        return config->second.get_peers();
+    auto config = this->configurations.current();
+    if (config)
+        return config->get_peers();
 
     throw std::runtime_error("No current configuration!");
 }
 
 const std::vector<bzn::peer_address_t>&
-pbft::current_configuration() const
+pbft::current_peers() const
 {
-    return *(this->current_configuration_ptr());
+    return *(this->current_peers_ptr());
 }
