@@ -102,10 +102,35 @@ pbft_config_store::enable(const hash_t& hash, bool val)
 }
 
 bool
+pbft_config_store::enable(pbft_configuration::index_t index, bool val)
+{
+    auto it = this->configs.find(index);
+    if (it != this->configs.end())
+    {
+        it->second.second = val;
+        return true;
+    }
+
+    return false;
+}
+
+bool
 pbft_config_store::is_enabled(const hash_t& hash) const
 {
     auto config = this->find_by_hash(hash);
     return config != this->configs.end() ? config->second.second : false;
+}
+
+bool
+pbft_config_store::is_enabled(pbft_configuration::index_t index) const
+{
+    auto it = this->configs.find(index);
+    if (it != this->configs.end())
+    {
+        return it->second.second;
+    }
+
+    return false;
 }
 
 pbft_configuration::shared_const_ptr

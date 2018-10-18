@@ -71,10 +71,18 @@ namespace {
         auto config = std::make_shared<bzn::pbft_configuration>();
         EXPECT_TRUE(this->store.add(config));
         EXPECT_FALSE(this->store.is_enabled(config->get_hash()));
+
         EXPECT_TRUE(this->store.enable(config->get_hash()));
         EXPECT_TRUE(this->store.is_enabled(config->get_hash()));
         EXPECT_TRUE(this->store.enable(config->get_hash(), false));
         EXPECT_FALSE(this->store.is_enabled(config->get_hash()));
+
+        EXPECT_TRUE(this->store.enable(config->get_index()));
+        EXPECT_TRUE(this->store.is_enabled(config->get_hash()));
+        EXPECT_TRUE(this->store.is_enabled(config->get_index()));
+        EXPECT_TRUE(this->store.enable(config->get_index(), false));
+        EXPECT_FALSE(this->store.is_enabled(config->get_hash()));
+        EXPECT_FALSE(this->store.is_enabled(config->get_index()));
     }
 
     TEST_F(pbft_config_store_test, removal_test)

@@ -33,9 +33,11 @@ namespace bzn
         bool set_current(const hash_t& hash);
         bool set_current(pbft_configuration::index_t index);
         pbft_configuration::shared_const_ptr current() const;
+
         bool enable(const hash_t& hash, bool val = true);
         bool is_enabled(const hash_t& hash) const;
-
+        bool enable(pbft_configuration::index_t index, bool val = true);
+        bool is_enabled(pbft_configuration::index_t index) const;
 
     private:
         using config_map = std::map<pbft_configuration::index_t, std::pair<pbft_configuration::shared_const_ptr, bool>>;
