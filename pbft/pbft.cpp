@@ -318,11 +318,11 @@ pbft::handle_join(const pbft_msg& msg)
 
         // TODO - validate new peer (signature?)
 
-        // see if we can add this peer into a newly forked configuration
-        pbft_configuration config = this->current_configuration().fork();
-        if (config.add_peer(peer))
+        // see if we can add this peer into a newly copied configuration
+        auto config = std::make_shared<pbft_configuration>(*(this->configurations.current()));
+        if (config->add_peer(peer))
         {
-            if (!this->add_configuration(config))
+            if (!this->configurations.add(config))
             {
                 assert(false);
             }
@@ -791,12 +791,12 @@ pbft::current_peers() const
 }
 
 void
-pbft::broadcast_new_configuration(const pbft_configuration& config, const pbft_request& req)
+pbft::broadcast_new_configuration(pbft_configuration::shared_const_ptr config, const pbft_request& req)
 {
     const uint64_t request_seq = this->next_issued_sequence_number++;
     auto op = this->find_operation(this->view, request_seq, req);
     pbft_msg msg = this->common_message_setup(op, PBFT_MSG_NEW_CONFIG);
-    std::string conf_str = config.to_json().toStyledString();
+    std::string conf_str = config->to_json().toStyledString();
     msg.set_config(conf_str);
 
     this->broadcast(this->wrap_message(msg, "new_config"));
