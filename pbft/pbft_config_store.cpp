@@ -59,11 +59,7 @@ pbft_config_store::remove_prior_to(const hash_t& hash)
     if (config == this->configs.end())
         return false;
 
-    auto it = this->configs.find(config->first);
-    if (it == this->configs.end())
-        return false;
-
-    this->configs.erase(this->configs.begin(), it);
+    this->configs.erase(this->configs.begin(), config);
     return true;
 }
 

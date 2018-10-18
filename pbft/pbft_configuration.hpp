@@ -31,7 +31,6 @@ namespace bzn
         using shared_const_ptr = std::shared_ptr<const pbft_configuration>;
 
         pbft_configuration();
-
         bool operator==(const pbft_configuration& other) const;
         bool operator!=(const pbft_configuration& other) const;
 

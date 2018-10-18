@@ -24,7 +24,6 @@ namespace bzn
     class pbft_config_store
     {
     public:
-
         pbft_config_store();
 
         bool add(pbft_configuration::shared_const_ptr config);
