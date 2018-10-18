@@ -102,18 +102,6 @@ namespace
         check_equal(*(cfg2.get_peers()), TEST_PEER_LIST);
     }
 
-    TEST_F(pbft_configuration_test, fork_updates_index)
-    {
-        for (const auto &peer : TEST_PEER_LIST)
-        {
-            this->cfg.add_peer(peer);
-        }
-
-        bzn::pbft_configuration::shared_const_ptr cfg2(this->cfg.fork());
-        EXPECT_TRUE(this->cfg.get_index() < cfg2->get_index());
-        check_equal(*(cfg2->get_peers()), TEST_PEER_LIST);
-    }
-
     TEST_F(pbft_configuration_test, reject_invalid_peer)
     {
         EXPECT_FALSE(this->cfg.add_peer(bzn::peer_address_t("", 8081, 8881, "name1", "uuid1")));

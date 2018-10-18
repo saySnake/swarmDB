@@ -61,7 +61,7 @@ namespace {
         EXPECT_EQ(*(this->store.current()), *config);
         EXPECT_NE(*(this->store.current()), *config2);
 
-        EXPECT_TRUE(this->store.set_current(config2->get_index()));
+        EXPECT_TRUE(this->store.set_current(config2->get_hash()));
         EXPECT_EQ(*(this->store.current()), *config2);
         EXPECT_NE(*(this->store.current()), *config);
     }
@@ -76,13 +76,6 @@ namespace {
         EXPECT_TRUE(this->store.is_enabled(config->get_hash()));
         EXPECT_TRUE(this->store.enable(config->get_hash(), false));
         EXPECT_FALSE(this->store.is_enabled(config->get_hash()));
-
-        EXPECT_TRUE(this->store.enable(config->get_index()));
-        EXPECT_TRUE(this->store.is_enabled(config->get_hash()));
-        EXPECT_TRUE(this->store.is_enabled(config->get_index()));
-        EXPECT_TRUE(this->store.enable(config->get_index(), false));
-        EXPECT_FALSE(this->store.is_enabled(config->get_hash()));
-        EXPECT_FALSE(this->store.is_enabled(config->get_index()));
     }
 
     TEST_F(pbft_config_store_test, removal_test)
@@ -103,12 +96,12 @@ namespace {
 
         auto config = std::make_shared<bzn::pbft_configuration>();
         EXPECT_TRUE(this->store.add(config));
-        EXPECT_TRUE(this->store.remove_prior_to(config->get_index()));
+        EXPECT_TRUE(this->store.remove_prior_to(config->get_hash()));
 
         // all other configs should be gone except the last one
         for (auto const& h : hashes)
         {
-            ASSERT_EQ(this->store.get(h), nullptr);
+            EXPECT_EQ(this->store.get(h), nullptr);
         }
         EXPECT_NE(this->store.get(config->get_hash()), nullptr);
     }

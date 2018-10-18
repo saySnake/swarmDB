@@ -29,24 +29,17 @@ namespace bzn
     {
     public:
         using shared_const_ptr = std::shared_ptr<const pbft_configuration>;
-        using index_t = uint64_t;
 
         pbft_configuration();
 
         bool operator==(const pbft_configuration& other) const;
         bool operator!=(const pbft_configuration& other) const;
 
-        // create a new configuration based on the current one
-        pbft_configuration::shared_const_ptr fork() const;
-
         // de-serialize from json - returns true for success
         bool from_json(const bzn::json_message& json);
 
         // serialize to json
         bzn::json_message to_json() const;
-
-        // returns the index of this configuration
-        index_t get_index() const;
 
         // returns the hash of this configuration
         hash_t get_hash() const;
@@ -65,11 +58,11 @@ namespace bzn
         bool conflicting_peer_exists(const bzn::peer_address_t &peer) const;
         bool valid_peer(const bzn::peer_address_t &peer) const;
         bool insert_peer(const bzn::peer_address_t& peer);
+        hash_t create_hash() const;
 
-        static index_t next_index;
-        index_t index;
         std::unordered_set<bzn::peer_address_t> peers;
         std::shared_ptr<std::vector<bzn::peer_address_t>> sorted_peers;
+        hash_t cached_hash;
     };
 }
 

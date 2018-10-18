@@ -17,50 +17,16 @@
 using namespace bzn;
 
 pbft_config_store::pbft_config_store()
-    : current_index(0)
+    : current_index(0), next_index(1)
 {
 }
 
 bool
 pbft_config_store::add(pbft_configuration::shared_const_ptr config)
 {
-    return (this->configs.insert(std::make_pair(config->get_index(), std::make_pair(config, false)))).second;
-}
-
-bool
-pbft_config_store::set_current(const hash_t& hash)
-{
-    auto config = this->get(hash);
-    if (config)
-    {
-        this->current_index = config->get_index();
-        return true;
-    }
-
-    return false;
-}
-
-bool
-pbft_config_store::set_current(pbft_configuration::index_t index)
-{
-    if (this->configs.find(index) != this->configs.end())
-    {
-        this->current_index = index;
-        return true;
-    }
-
-    return false;
-}
-
-bool
-pbft_config_store::remove_prior_to(pbft_configuration::index_t index)
-{
-    auto it = this->configs.find(index);
-    if (it == this->configs.end())
-        return false;
-
-    this->configs.erase(this->configs.begin(), it);
-    return true;
+    // TODO - should we be making a copy here instead?
+    // currently the added config could be changed externally after being added
+    return (this->configs.insert(std::make_pair(this->next_index++, std::make_pair(config, false)))).second;
 }
 
 pbft_config_store::config_map::const_iterator
@@ -73,6 +39,32 @@ pbft_config_store::find_by_hash(hash_t hash) const
         });
 
     return config;
+}
+
+bool
+pbft_config_store::set_current(const hash_t& hash)
+{
+    auto config = this->find_by_hash(hash);
+    if (config == this->configs.end())
+        return false;
+
+    this->current_index = config->first;
+    return true;
+}
+
+bool
+pbft_config_store::remove_prior_to(const hash_t& hash)
+{
+    auto config = this->find_by_hash(hash);
+    if (config == this->configs.end())
+        return false;
+
+    auto it = this->configs.find(config->first);
+    if (it == this->configs.end())
+        return false;
+
+    this->configs.erase(this->configs.begin(), it);
+    return true;
 }
 
 pbft_configuration::shared_const_ptr
@@ -102,35 +94,10 @@ pbft_config_store::enable(const hash_t& hash, bool val)
 }
 
 bool
-pbft_config_store::enable(pbft_configuration::index_t index, bool val)
-{
-    auto it = this->configs.find(index);
-    if (it != this->configs.end())
-    {
-        it->second.second = val;
-        return true;
-    }
-
-    return false;
-}
-
-bool
 pbft_config_store::is_enabled(const hash_t& hash) const
 {
     auto config = this->find_by_hash(hash);
     return config != this->configs.end() ? config->second.second : false;
-}
-
-bool
-pbft_config_store::is_enabled(pbft_configuration::index_t index) const
-{
-    auto it = this->configs.find(index);
-    if (it != this->configs.end())
-    {
-        return it->second.second;
-    }
-
-    return false;
 }
 
 pbft_configuration::shared_const_ptr

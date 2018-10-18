@@ -22,10 +22,7 @@
 
 using namespace bzn;
 
-pbft_configuration::index_t pbft_configuration::next_index = 1;
-
 pbft_configuration::pbft_configuration()
-: index(next_index++)
 {
     this->sorted_peers = std::make_shared<std::vector<bzn::peer_address_t>>();
 }
@@ -33,21 +30,13 @@ pbft_configuration::pbft_configuration()
 bool
 pbft_configuration::operator==(const pbft_configuration& other) const
 {
-    return this->index == other.index && this->get_hash() == other.get_hash();
+    return this->get_hash() == other.get_hash();
 }
 
 bool
 pbft_configuration::operator!=(const pbft_configuration& other) const
 {
     return !(this->operator==(other));
-}
-
-pbft_configuration::shared_const_ptr
-pbft_configuration::fork() const
-{
-    auto forked = std::make_shared<pbft_configuration>(*this);
-    forked->index = next_index++;
-    return forked;
 }
 
 bool
@@ -102,20 +91,20 @@ pbft_configuration::to_json() const
     return json;
 }
 
-pbft_configuration::index_t
-pbft_configuration::get_index() const
-{
-    return this->index;
-}
-
 hash_t
-pbft_configuration::get_hash() const
+pbft_configuration::create_hash() const
 {
     // TODO: better hash function
 
     auto json = this->to_json().toStyledString();
     size_t h = std::hash<std::string>{}(json);
     return std::to_string(h);
+}
+
+hash_t
+pbft_configuration::get_hash() const
+{
+    return cached_hash;
 }
 
 std::shared_ptr<const std::vector<bzn::peer_address_t>>
@@ -192,6 +181,7 @@ pbft_configuration::cache_sorted_peers()
     );
 
     this->sorted_peers = sorted;
+    this->cached_hash = this->create_hash();
 }
 
 bool
