@@ -15,7 +15,7 @@ add_library(pbft STATIC
 
         pbft_failure_detector.cpp
         pbft_failure_detector.hpp
-        pbft_failure_detector_base.hpp pbft_configuration.hpp pbft_configuration.cpp test/pbft_configuration_test.cpp)
+        pbft_failure_detector_base.hpp pbft_configuration.hpp pbft_configuration.cpp test/pbft_configuration_test.cpp pbft_config_store.hpp pbft_config_store.cpp test/pbft_config_store_test.cpp)
 
 target_link_libraries(pbft utils proto)
 target_include_directories(pbft PRIVATE ${JSONCPP_INCLUDE_DIRS} ${PROTO_INCLUDE_DIR})

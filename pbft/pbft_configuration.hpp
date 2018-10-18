@@ -20,7 +20,6 @@
 #include <cstdint>
 #include <string>
 #include <vector>
-#include <map>
 
 namespace bzn
 {
@@ -35,6 +34,7 @@ namespace bzn
         pbft_configuration();
 
         bool operator==(const pbft_configuration& other) const;
+        bool operator!=(const pbft_configuration& other) const;
 
         // create a new configuration based on the current one
         pbft_configuration::shared_const_ptr fork() const;
@@ -70,28 +70,6 @@ namespace bzn
         index_t index;
         std::unordered_set<bzn::peer_address_t> peers;
         std::shared_ptr<std::vector<bzn::peer_address_t>> sorted_peers;
-    };
-
-    class pbft_config_store
-    {
-    public:
-        pbft_config_store();
-        bool add(pbft_configuration::shared_const_ptr config);
-        bool remove_prior_to(pbft_configuration::index_t index);
-        pbft_configuration::shared_const_ptr get(const hash_t& hash) const;
-        bool set_current(const hash_t& hash);
-        bool enable(const hash_t& hash, bool val = true);
-        bool is_enabled(const hash_t& hash) const;
-
-        pbft_configuration::shared_const_ptr current() const;
-
-    private:
-        using config_map = std::map<pbft_configuration::index_t, std::pair<pbft_configuration::shared_const_ptr, bool>>;
-        config_map::const_iterator find_by_hash(hash_t hash) const;
-
-        // a map from the config index to a pair of <config, is_config_enabled>
-        config_map configs;
-        pbft_configuration::index_t current_index;
     };
 }
 

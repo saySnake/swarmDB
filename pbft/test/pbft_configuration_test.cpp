@@ -17,7 +17,8 @@
 
 using namespace ::testing;
 
-namespace {
+namespace
+{
 
     const std::vector<bzn::peer_address_t> TEST_PEER_LIST{{"127.0.0.1", 8081, 8881, "name1", "uuid1"},
                                                           {"127.0.0.1", 8082, 8882, "name2", "uuid2"},
@@ -67,7 +68,7 @@ namespace {
         EXPECT_EQ(this->cfg.get_peers()->size(), 1U);
     }
 
-    void check_equal(const std::vector<bzn::peer_address_t>& p1, const std::vector<bzn::peer_address_t>& p2)
+    void check_equal(const std::vector<bzn::peer_address_t> &p1, const std::vector<bzn::peer_address_t> &p2)
     {
         ASSERT_EQ(p1.size(), p2.size());
         for (uint i = 0; i < p1.size(); i++)
@@ -90,7 +91,7 @@ namespace {
 
     TEST_F(pbft_configuration_test, to_from_json)
     {
-        for (const auto& peer : TEST_PEER_LIST)
+        for (const auto &peer : TEST_PEER_LIST)
         {
             this->cfg.add_peer(peer);
         }
@@ -103,7 +104,7 @@ namespace {
 
     TEST_F(pbft_configuration_test, fork_updates_index)
     {
-        for (const auto& peer : TEST_PEER_LIST)
+        for (const auto &peer : TEST_PEER_LIST)
         {
             this->cfg.add_peer(peer);
         }
@@ -128,38 +129,4 @@ namespace {
         EXPECT_FALSE(this->cfg.add_peer(bzn::peer_address_t("127.0.0.1", 8081, 8882, "name2", "uuid2")));
         EXPECT_TRUE(this->cfg.add_peer(bzn::peer_address_t("127.0.0.1", 8082, 8882, "name2", "uuid2")));
     }
-
-
-    class pbft_config_store_test : public Test
-    {
-    public:
-        bzn::pbft_config_store store;
-    };
-
-    TEST_F(pbft_config_store_test, initially_empty)
-    {
-        EXPECT_EQ(this->store.current(), nullptr);
-    }
-
-    TEST_F(pbft_config_store_test, add_test)
-    {
-        auto config = std::make_shared<bzn::pbft_configuration>();
-        EXPECT_TRUE(this->store.add(config));
-
-        auto config2 = this->store.get(config->get_hash());
-        ASSERT_TRUE(config2 != nullptr);
-        EXPECT_TRUE(*config == *config2);
-    }
-
-    TEST_F(pbft_config_store_test, enable_test)
-    {
-        auto config = std::make_shared<bzn::pbft_configuration>();
-        EXPECT_TRUE(this->store.add(config));
-        EXPECT_FALSE(this->store.is_enabled(config->get_hash()));
-        EXPECT_TRUE(this->store.enable(config->get_hash()));
-        EXPECT_TRUE(this->store.is_enabled(config->get_hash()));
-        EXPECT_TRUE(this->store.enable(config->get_hash(), false));
-        EXPECT_FALSE(this->store.is_enabled(config->get_hash()));
-    }
-
 }

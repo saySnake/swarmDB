@@ -19,7 +19,7 @@
 #include <pbft/pbft_base.hpp>
 #include <pbft/pbft_failure_detector.hpp>
 #include <pbft/pbft_service_base.hpp>
-#include <pbft/pbft_configuration.hpp>
+#include <pbft/pbft_config_store.hpp>
 #include <status/status_provider_base.hpp>
 #include <crypto/crypto_base.hpp>
 #include <mutex>
