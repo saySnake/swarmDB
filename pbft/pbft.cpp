@@ -279,6 +279,11 @@ pbft::handle_preprepare(const pbft_msg& msg, const wrapped_bzn_msg& original_msg
         // This assignment will be redundant if we've seen this preprepare before, but that's fine
         accepted_preprepares[log_key] = op->get_operation_key();
 
+        if (msg.has_request() && msg.request().type() == PBFT_REQ_INTERNAL)
+        {
+            this->handle_internal_message(msg, op);
+        }
+
         this->do_preprepared(op);
         this->maybe_advance_operation_state(op);
     }
@@ -806,4 +811,43 @@ pbft::broadcast_new_configuration(pbft_configuration::shared_const_ptr config, c
     pbft_msg preprepare = this->common_message_setup(op, PBFT_MSG_PREPREPARE);
 
     this->broadcast(this->wrap_message(preprepare, "preprepare"));
+}
+
+void
+pbft::handle_internal_message(const pbft_msg& msg, const std::shared_ptr<pbft_operation>& op)
+{
+    auto const& request = op->request;
+    assert(request.type() == PBFT_REQ_INTERNAL);
+    auto imsg = request.command();
+    if (imsg.type() == PBFT_IMSG_NEW_CONFIG)
+    {
+        switch (msg.type())
+        {
+            case PBFT_MSG_PREPREPARE:
+            {
+                Json::Value msg;
+                Json::Reader reader;
+                if (reader.parse(imsg.configuration(), msg))
+                {
+                    auto config = std::make_shared<pbft_configuration>();
+                    if (config->from_json(msg))
+                    {
+                        // store this configuration
+                        this->configurations.add(config);
+                    }
+                }
+
+                break;
+            }
+            case PBFT_MSG_PREPARE:
+                break;
+
+            case PBFT_MSG_COMMIT:
+                break;
+
+            default:
+                break;
+        }
+    }
+
 }
