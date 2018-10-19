@@ -37,9 +37,6 @@ message pbft_msg
 
     // for join/leave requests
     pbft_peer_info peer_info = 7;
-
-    // new_config messages
-    string config = 8;
 }
 
 enum pbft_msg_type {
@@ -51,14 +48,37 @@ enum pbft_msg_type {
     PBFT_MSG_CHECKPOINT = 5;
     PBFT_MSG_JOIN = 6;
     PBFT_MSG_LEAVE = 7;
-    PBFT_MSG_NEW_CONFIG = 8;
 }
 
 message pbft_request
 {
-    database_msg operation = 1;
-    uint64 timestamp = 2;
-    string client = 3;
+    pbft_request_type type = 1;
+    oneof msg
+    {
+        database_msg operation = 2;
+        pbft_internal_msg command = 3;
+    }
+    uint64 timestamp = 4;
+    string client = 5;
+}
+
+enum pbft_internal_msg_type {
+    PBFT_IMSG_UNDEFINED = 0;
+    PBFT_IMSG_NEW_CONFIG = 1;
+}
+
+enum pbft_request_type {
+    PBFT_REQ_UNDEFINED = 0;
+    PBFT_REQ_DATABASE = 1;
+    PBFT_REQ_INTERNAL = 2;
+}
+
+message pbft_internal_msg
+{
+    pbft_internal_msg_type type = 1;
+
+    // for new_config
+    string configuration = 2;
 }
 
 message pbft_peer_info

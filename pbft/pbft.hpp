@@ -23,6 +23,7 @@
 #include <status/status_provider_base.hpp>
 #include <crypto/crypto_base.hpp>
 #include <mutex>
+#include <gtest/gtest_prod.h>
 
 namespace
 {
@@ -34,7 +35,6 @@ namespace
 
 namespace bzn
 {
-
     using request_hash_t = std::string;
     using checkpoint_t = std::pair<uint64_t, bzn::hash_t>;
 
@@ -80,6 +80,8 @@ namespace bzn
         bzn::json_message get_status() override;
 
     private:
+        FRIEND_TEST(pbft_test, test_new_config_preprepare_handling);
+
         std::shared_ptr<pbft_operation> find_operation(uint64_t view, uint64_t sequence, const pbft_request& request);
         std::shared_ptr<pbft_operation> find_operation(const pbft_msg& msg);
         std::shared_ptr<pbft_operation> find_operation(const std::shared_ptr<pbft_operation>& op);
@@ -126,7 +128,7 @@ namespace bzn
 
         std::shared_ptr<const std::vector<bzn::peer_address_t>> current_peers_ptr() const;
         const std::vector<bzn::peer_address_t>& current_peers() const;
-        void broadcast_new_configuration(pbft_configuration::shared_const_ptr config, const pbft_request& req);
+        void broadcast_new_configuration(pbft_configuration::shared_const_ptr config, const pbft_msg& msg);
 
         // Using 1 as first value here to distinguish from default value of 0 in protobuf
         uint64_t view = 1;

@@ -327,7 +327,7 @@ pbft::handle_join(const pbft_msg& msg)
                 assert(false);
             }
 
-            this->broadcast_new_configuration(config, msg.request());
+            this->broadcast_new_configuration(config, msg);
         }
         else
         {
@@ -791,14 +791,19 @@ pbft::current_peers() const
 }
 
 void
-pbft::broadcast_new_configuration(pbft_configuration::shared_const_ptr config, const pbft_request& req)
+pbft::broadcast_new_configuration(pbft_configuration::shared_const_ptr config, const pbft_msg& msg)
 {
+    pbft_request req(msg.request());
+    req.set_type(PBFT_REQ_INTERNAL);
+    pbft_internal_msg* internal_msg = new pbft_internal_msg;
+
+    internal_msg->set_type(PBFT_IMSG_NEW_CONFIG);
+    internal_msg->set_configuration(config->to_json().toStyledString());
+    req.set_allocated_command(internal_msg);
+
     const uint64_t request_seq = this->next_issued_sequence_number++;
     auto op = this->find_operation(this->view, request_seq, req);
-    pbft_msg msg = this->common_message_setup(op, PBFT_MSG_NEW_CONFIG);
-    std::string conf_str = config->to_json().toStyledString();
-    msg.set_config(conf_str);
+    pbft_msg preprepare = this->common_message_setup(op, PBFT_MSG_PREPREPARE);
 
-    this->broadcast(this->wrap_message(msg, "new_config"));
-
+    this->broadcast(this->wrap_message(preprepare, "preprepare"));
 }
