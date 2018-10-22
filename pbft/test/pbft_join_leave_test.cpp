@@ -78,43 +78,107 @@ namespace bzn
         this->pbft->handle_message(join_msg);
     }
 
-    TEST_F(pbft_test, test_new_config_preprepare_handling)
+    namespace test
+    {
+        pbft_msg
+        send_new_config_preprepare(std::shared_ptr<bzn::pbft> pbft, std::shared_ptr<bzn::Mocknode_base> mock_node
+            , const bzn::pbft_configuration &config)
+        {
+            // make and "send" a pre-prepare message for a new_config
+            auto req = new pbft_request;
+            req->set_type(PBFT_REQ_INTERNAL);
+            auto *internal_msg = new pbft_internal_msg;
+
+            internal_msg->set_type(PBFT_IMSG_NEW_CONFIG);
+            internal_msg->set_configuration(config.to_json().toStyledString());
+            req->set_allocated_command(internal_msg);
+
+            pbft_msg preprepare;
+            preprepare.set_view(1);
+            preprepare.set_sequence(100);
+            preprepare.set_type(PBFT_MSG_PREPREPARE);
+            preprepare.set_sender("bob");
+            preprepare.set_allocated_request(req);
+
+            // receiving node should send out prepare messsage to everyone
+            for (auto const &p : TEST_PEER_LIST)
+            {
+                EXPECT_CALL(*(mock_node),
+                    send_message_str(bzn::make_endpoint(p),
+                        message_is_correct_type(PBFT_MSG_PREPARE, PBFT_IMSG_NEW_CONFIG)))
+                    .Times(Exactly(1));
+            }
+
+            pbft->handle_message(preprepare);
+            return preprepare;
+        }
+
+        void
+        send_new_config_prepare(std::shared_ptr<bzn::pbft> pbft, bzn::peer_address_t node, std::shared_ptr<pbft_operation> op)
+        {
+            pbft_msg prepare;
+            prepare.set_view(op->view);
+            prepare.set_sequence(op->sequence);
+            prepare.set_type(PBFT_MSG_PREPARE);
+            prepare.set_sender(node.uuid);
+            prepare.set_allocated_request(new pbft_request(op->request));
+
+            pbft->handle_message(prepare);
+        }
+    }
+
+
+TEST_F(pbft_test, test_new_config_preprepare_handling)
     {
         this->build_pbft();
 
         pbft_configuration config;
         config.add_peer(new_peer);
 
-        // make and "send" a pre-prepare message for a new_config
-        auto req = new pbft_request;
-        req->set_type(PBFT_REQ_INTERNAL);
-        pbft_internal_msg* internal_msg = new pbft_internal_msg;
-
-        internal_msg->set_type(PBFT_IMSG_NEW_CONFIG);
-        internal_msg->set_configuration(config.to_json().toStyledString());
-        req->set_allocated_command(internal_msg);
-
-        pbft_msg preprepare;
-        preprepare.set_view(1);
-        preprepare.set_sequence(100);
-        preprepare.set_type(PBFT_MSG_PREPREPARE);
-        preprepare.set_sender("bob");
-        preprepare.set_allocated_request(req);
-
-        // node should send out prepare messsage to everyone
-        for (auto const &p : TEST_PEER_LIST)
-        {
-            EXPECT_CALL(*(this->mock_node),
-                send_message_str(bzn::make_endpoint(p),
-                    message_is_correct_type(PBFT_MSG_PREPARE, PBFT_IMSG_NEW_CONFIG)))
-                .Times(Exactly(1));
-        }
-
-        this->pbft->handle_message(preprepare);
+        send_new_config_preprepare(pbft, this->mock_node, config);
 
         // the config should now be stored by this node, but not marked enabled/current
         ASSERT_NE(this->pbft->configurations.get(config.get_hash()), nullptr);
         EXPECT_FALSE(this->pbft->configurations.is_enabled(config.get_hash()));
         EXPECT_NE(*(this->pbft->configurations.current()), config);
+        EXPECT_FALSE(this->pbft->is_configuration_acceptable_in_new_view(config.get_hash()));
+    }
+
+    TEST_F(pbft_test, test_new_config_prepare_handling)
+    {
+        this->build_pbft();
+
+        pbft_configuration config;
+        config.add_peer(new_peer);
+        auto msg = send_new_config_preprepare(pbft, this->mock_node, config);
+
+        auto op = this->pbft->find_operation(msg);
+        ASSERT_NE(op, nullptr);
+
+        auto nodes = TEST_PEER_LIST.begin();
+        size_t req_nodes = 2 * op->faulty_nodes_bound();
+        for (size_t i = 0; i < req_nodes; i++)
+        {
+            bzn::peer_address_t node(*nodes++);
+            send_new_config_prepare(pbft, node, op);
+        }
+
+        // the next prepare should trigger a commit message
+        for (auto const &p : TEST_PEER_LIST)
+        {
+            EXPECT_CALL(*(mock_node),
+                send_message_str(bzn::make_endpoint(p),
+                    message_is_correct_type(PBFT_MSG_COMMIT, PBFT_IMSG_NEW_CONFIG)))
+                .Times(Exactly(1));
+        }
+
+        bzn::peer_address_t node(*nodes++);
+        send_new_config_prepare(pbft, node, op);
+
+        // and now the config should be enabled and acceptable, but not current
+        ASSERT_NE(this->pbft->configurations.get(config.get_hash()), nullptr);
+        EXPECT_TRUE(this->pbft->configurations.is_enabled(config.get_hash()));
+        EXPECT_NE(*(this->pbft->configurations.current()), config);
+        EXPECT_TRUE(this->pbft->is_configuration_acceptable_in_new_view(config.get_hash()));
     }
 }

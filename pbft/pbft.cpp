@@ -407,6 +407,16 @@ pbft::do_preprepared(const std::shared_ptr<pbft_operation>& op)
 void
 pbft::do_prepared(const std::shared_ptr<pbft_operation>& op)
 {
+    // accept new configuration if applicatble
+    if (op->request.type() == PBFT_REQ_INTERNAL && op->request.command().type() == PBFT_IMSG_NEW_CONFIG)
+    {
+        pbft_configuration config;
+        if (config.from_json(this->string_to_json(op->request.command().configuration())))
+        {
+            this->configurations.enable(config.get_hash());
+        }
+    }
+
     LOG(debug) << "Entering commit phase for operation " << op->debug_string();
     op->begin_commit_phase();
 
@@ -800,7 +810,7 @@ pbft::broadcast_new_configuration(pbft_configuration::shared_const_ptr config, c
 {
     pbft_request req(msg.request());
     req.set_type(PBFT_REQ_INTERNAL);
-    pbft_internal_msg* internal_msg = new pbft_internal_msg;
+    auto internal_msg = new pbft_internal_msg;
 
     internal_msg->set_type(PBFT_IMSG_NEW_CONFIG);
     internal_msg->set_configuration(config->to_json().toStyledString());
@@ -813,41 +823,39 @@ pbft::broadcast_new_configuration(pbft_configuration::shared_const_ptr config, c
     this->broadcast(this->wrap_message(preprepare, "preprepare"));
 }
 
+bool
+pbft::is_configuration_acceptable_in_new_view(hash_t config_hash)
+{
+    return this->configurations.is_enabled(config_hash);
+}
+
 void
 pbft::handle_internal_message(const pbft_msg& msg, const std::shared_ptr<pbft_operation>& op)
 {
     auto const& request = op->request;
     assert(request.type() == PBFT_REQ_INTERNAL);
     auto imsg = request.command();
-    if (imsg.type() == PBFT_IMSG_NEW_CONFIG)
+    if (imsg.type() == PBFT_IMSG_NEW_CONFIG && msg.type() == PBFT_MSG_PREPREPARE)
     {
-        switch (msg.type())
+        if (auto config = std::make_shared<pbft_configuration>();
+            config->from_json(this->string_to_json(imsg.configuration())))
         {
-            case PBFT_MSG_PREPREPARE:
-            {
-                Json::Value msg;
-                Json::Reader reader;
-                if (reader.parse(imsg.configuration(), msg))
-                {
-                    auto config = std::make_shared<pbft_configuration>();
-                    if (config->from_json(msg))
-                    {
-                        // store this configuration
-                        this->configurations.add(config);
-                    }
-                }
-
-                break;
-            }
-            case PBFT_MSG_PREPARE:
-                break;
-
-            case PBFT_MSG_COMMIT:
-                break;
-
-            default:
-                break;
+            // store this configuration
+            this->configurations.add(config);
         }
     }
 
+}
+
+bzn::json_message
+pbft::string_to_json(const std::string& val)
+{
+    Json::Value msg;
+    Json::Reader reader;
+    if (reader.parse(val, msg))
+    {
+        return msg;
+    }
+
+    return bzn::json_message();
 }

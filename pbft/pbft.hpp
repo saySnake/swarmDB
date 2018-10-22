@@ -80,8 +80,6 @@ namespace bzn
         bzn::json_message get_status() override;
 
     private:
-        FRIEND_TEST(pbft_test, test_new_config_preprepare_handling);
-
         std::shared_ptr<pbft_operation> find_operation(uint64_t view, uint64_t sequence, const pbft_request& request);
         std::shared_ptr<pbft_operation> find_operation(const pbft_msg& msg);
         std::shared_ptr<pbft_operation> find_operation(const std::shared_ptr<pbft_operation>& op);
@@ -131,6 +129,7 @@ namespace bzn
         std::shared_ptr<const std::vector<bzn::peer_address_t>> current_peers_ptr() const;
         const std::vector<bzn::peer_address_t>& current_peers() const;
         void broadcast_new_configuration(pbft_configuration::shared_const_ptr config, const pbft_msg& msg);
+        bool is_configuration_acceptable_in_new_view(hash_t config_hash);
 
         // Using 1 as first value here to distinguish from default value of 0 in protobuf
         uint64_t view = 1;
@@ -164,6 +163,10 @@ namespace bzn
         std::set<checkpoint_t> local_unstable_checkpoints;
         std::map<checkpoint_t, std::unordered_map<uuid_t, std::string>> unstable_checkpoint_proofs;
         pbft_config_store configurations;
+        bzn::json_message string_to_json(const std::string& val);
+
+        FRIEND_TEST(pbft_test, test_new_config_preprepare_handling);
+        FRIEND_TEST(pbft_test, test_new_config_prepare_handling);
 
         std::shared_ptr<crypto_base> crypto;
     };
