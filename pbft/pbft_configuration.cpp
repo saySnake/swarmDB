@@ -40,8 +40,16 @@ pbft_configuration::operator!=(const pbft_configuration& other) const
 }
 
 bool
-pbft_configuration::from_json(const bzn::json_message& json)
+pbft_configuration::from_string(const std::string& str)
 {
+    Json::Value json;
+    Json::Reader reader;
+    if (!reader.parse(str, json))
+    {
+        LOG(error) << "Unable to parse configuration: " << str.substr(0, MAX_MESSAGE_SIZE) << "...";
+        return false;
+    }
+
     if (!json.isMember("peers") || !json["peers"].isArray())
     {
         LOG(error) << "Invalid configuration: " << json.toStyledString().substr(0, MAX_MESSAGE_SIZE) << "...";
@@ -71,8 +79,8 @@ pbft_configuration::from_json(const bzn::json_message& json)
     return result;
 }
 
-bzn::json_message
-pbft_configuration::to_json() const
+std::string
+pbft_configuration::to_string() const
 {
     bzn::json_message json;
     json["peers"] = bzn::json_message();
@@ -88,7 +96,7 @@ pbft_configuration::to_json() const
         json["peers"].append(peer);
     }
 
-    return json;
+    return json.toStyledString();
 }
 
 hash_t
@@ -96,7 +104,7 @@ pbft_configuration::create_hash() const
 {
     // TODO: better hash function
 
-    auto json = this->to_json().toStyledString();
+    auto json = this->to_string();
     size_t h = std::hash<std::string>{}(json);
     return std::to_string(h);
 }

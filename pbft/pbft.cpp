@@ -411,7 +411,7 @@ pbft::do_prepared(const std::shared_ptr<pbft_operation>& op)
     if (op->request.type() == PBFT_REQ_INTERNAL && op->request.command().type() == PBFT_IMSG_NEW_CONFIG)
     {
         pbft_configuration config;
-        if (config.from_json(this->string_to_json(op->request.command().configuration())))
+        if (config.from_string(op->request.command().configuration()))
         {
             this->configurations.enable(config.get_hash());
         }
@@ -432,7 +432,7 @@ pbft::do_committed(const std::shared_ptr<pbft_operation>& op)
     if (op->request.type() == PBFT_REQ_INTERNAL && op->request.command().type() == PBFT_IMSG_NEW_CONFIG)
     {
         pbft_configuration config;
-        if (config.from_json(this->string_to_json(op->request.command().configuration())))
+        if (config.from_string(op->request.command().configuration()))
         {
             // get rid of all other previous configs, except for current one
             this->configurations.remove_prior_to(config.get_hash());
@@ -824,7 +824,7 @@ pbft::broadcast_new_configuration(pbft_configuration::shared_const_ptr config, c
     auto internal_msg = new pbft_internal_msg;
 
     internal_msg->set_type(PBFT_IMSG_NEW_CONFIG);
-    internal_msg->set_configuration(config->to_json().toStyledString());
+    internal_msg->set_configuration(config->to_string());
     req.set_allocated_command(internal_msg);
 
     const uint64_t request_seq = this->next_issued_sequence_number++;
@@ -849,26 +849,13 @@ pbft::handle_internal_message(const pbft_msg& msg, const std::shared_ptr<pbft_op
     if (imsg.type() == PBFT_IMSG_NEW_CONFIG && msg.type() == PBFT_MSG_PREPREPARE)
     {
         if (auto config = std::make_shared<pbft_configuration>();
-            config->from_json(this->string_to_json(imsg.configuration())))
+            config->from_string(imsg.configuration()))
         {
             // store this configuration
             this->configurations.add(config);
         }
     }
 
-}
-
-bzn::json_message
-pbft::string_to_json(const std::string& val)
-{
-    Json::Value msg;
-    Json::Reader reader;
-    if (reader.parse(val, msg))
-    {
-        return msg;
-    }
-
-    return bzn::json_message();
 }
 
 bool

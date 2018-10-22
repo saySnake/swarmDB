@@ -164,7 +164,6 @@ namespace bzn
         std::set<checkpoint_t> local_unstable_checkpoints;
         std::map<checkpoint_t, std::unordered_map<uuid_t, std::string>> unstable_checkpoint_proofs;
         pbft_config_store configurations;
-        bzn::json_message string_to_json(const std::string& val);
 
         FRIEND_TEST(pbft_test, test_new_config_preprepare_handling);
         FRIEND_TEST(pbft_test, test_new_config_prepare_handling);

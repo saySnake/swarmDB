@@ -91,7 +91,7 @@ namespace bzn
             auto *internal_msg = new pbft_internal_msg;
 
             internal_msg->set_type(PBFT_IMSG_NEW_CONFIG);
-            internal_msg->set_configuration(config.to_json().toStyledString());
+            internal_msg->set_configuration(config.to_string());
             req->set_allocated_command(internal_msg);
 
             pbft_msg preprepare;

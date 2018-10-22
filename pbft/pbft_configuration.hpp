@@ -34,11 +34,11 @@ namespace bzn
         bool operator==(const pbft_configuration& other) const;
         bool operator!=(const pbft_configuration& other) const;
 
-        // de-serialize from json - returns true for success
-        bool from_json(const bzn::json_message& json);
+        // de-serialize from string - returns true for success
+        bool from_string(const std::string& str);
 
-        // serialize to json
-        bzn::json_message to_json() const;
+        // serialize to string
+        std::string to_string() const;
 
         // returns the hash of this configuration
         hash_t get_hash() const;

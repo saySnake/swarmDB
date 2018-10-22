@@ -96,9 +96,9 @@ namespace
             this->cfg.add_peer(peer);
         }
 
-        bzn::json_message json = this->cfg.to_json();
+        std::string val = this->cfg.to_string();
         bzn::pbft_configuration cfg2;
-        cfg2.from_json(json);
+        cfg2.from_string(val);
         check_equal(*(cfg2.get_peers()), TEST_PEER_LIST);
     }
 
