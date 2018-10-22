@@ -407,7 +407,7 @@ pbft::do_preprepared(const std::shared_ptr<pbft_operation>& op)
 void
 pbft::do_prepared(const std::shared_ptr<pbft_operation>& op)
 {
-    // accept new configuration if applicatble
+    // accept new configuration if applicable
     if (op->request.type() == PBFT_REQ_INTERNAL && op->request.command().type() == PBFT_IMSG_NEW_CONFIG)
     {
         pbft_configuration config;
@@ -428,6 +428,17 @@ pbft::do_prepared(const std::shared_ptr<pbft_operation>& op)
 void
 pbft::do_committed(const std::shared_ptr<pbft_operation>& op)
 {
+    // commit new configuration if applicable
+    if (op->request.type() == PBFT_REQ_INTERNAL && op->request.command().type() == PBFT_IMSG_NEW_CONFIG)
+    {
+        pbft_configuration config;
+        if (config.from_json(this->string_to_json(op->request.command().configuration())))
+        {
+            // get rid of all other previous configs, except for current one
+            this->configurations.remove_prior_to(config.get_hash());
+        }
+    }
+
     LOG(debug) << "Operation " << op->debug_string() << " is committed-local";
     op->end_commit_phase();
 

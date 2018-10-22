@@ -20,6 +20,7 @@ namespace bzn
 {
     using namespace bzn::test;
     const bzn::peer_address_t new_peer{"127.0.0.1", 8090, 83, "name_new", "uuid_new"};
+    const bzn::peer_address_t new_peer2{"127.0.0.1", 8091, 84, "name_new2", "uuid_new2"};
 
     MATCHER_P2(message_is_correct_type, type, command, "")
     {
@@ -125,6 +126,19 @@ namespace bzn
 
             pbft->handle_message(prepare);
         }
+
+        void
+        send_new_config_commit(std::shared_ptr<bzn::pbft> pbft, bzn::peer_address_t node, std::shared_ptr<pbft_operation> op)
+        {
+            pbft_msg commit;
+            commit.set_view(op->view);
+            commit.set_sequence(op->sequence);
+            commit.set_type(PBFT_MSG_COMMIT);
+            commit.set_sender(node.uuid);
+            commit.set_allocated_request(new pbft_request(op->request));
+
+            pbft->handle_message(commit);
+        }
     }
 
 
@@ -148,6 +162,7 @@ TEST_F(pbft_test, test_new_config_preprepare_handling)
     {
         this->build_pbft();
 
+        // PREPREPARE step
         pbft_configuration config;
         config.add_peer(new_peer);
         auto msg = send_new_config_preprepare(pbft, this->mock_node, config);
@@ -155,6 +170,7 @@ TEST_F(pbft_test, test_new_config_preprepare_handling)
         auto op = this->pbft->find_operation(msg);
         ASSERT_NE(op, nullptr);
 
+        // PREPARE step
         auto nodes = TEST_PEER_LIST.begin();
         size_t req_nodes = 2 * op->faulty_nodes_bound();
         for (size_t i = 0; i < req_nodes; i++)
@@ -180,5 +196,63 @@ TEST_F(pbft_test, test_new_config_preprepare_handling)
         EXPECT_TRUE(this->pbft->configurations.is_enabled(config.get_hash()));
         EXPECT_NE(*(this->pbft->configurations.current()), config);
         EXPECT_TRUE(this->pbft->is_configuration_acceptable_in_new_view(config.get_hash()));
+    }
+
+    TEST_F(pbft_test, test_new_config_commit_handling)
+    {
+        this->build_pbft();
+
+        // insert and enable a dummy configuration prior to the new one to be proposed
+        auto dummy_config = std::make_shared<pbft_configuration>();
+        dummy_config->add_peer(new_peer2);
+        EXPECT_TRUE(this->pbft->configurations.add(dummy_config));
+        this->pbft->configurations.enable(dummy_config->get_hash());
+        EXPECT_TRUE(this->pbft->is_configuration_acceptable_in_new_view(dummy_config->get_hash()));
+
+        // PREPREPARE step
+        pbft_configuration config;
+        config.add_peer(new_peer);
+        auto msg = send_new_config_preprepare(pbft, this->mock_node, config);
+
+        auto op = this->pbft->find_operation(msg);
+        ASSERT_NE(op, nullptr);
+
+        // PREPARE step
+        for (auto const &p : TEST_PEER_LIST)
+        {
+            EXPECT_CALL(*(mock_node),
+                send_message_str(bzn::make_endpoint(p),
+                    message_is_correct_type(PBFT_MSG_COMMIT, PBFT_IMSG_NEW_CONFIG)))
+                .Times(Exactly(1));
+        }
+
+        for (auto const &p : TEST_PEER_LIST)
+        {
+            send_new_config_prepare(pbft, p, op);
+        }
+
+        // COMMIT step
+        auto nodes = TEST_PEER_LIST.begin();
+        size_t req_nodes = 2 * op->faulty_nodes_bound();
+        for (size_t i = 0; i < req_nodes; i++)
+        {
+            bzn::peer_address_t node(*nodes++);
+            send_new_config_commit(pbft, node, op);
+        }
+        EXPECT_TRUE(this->pbft->is_configuration_acceptable_in_new_view(dummy_config->get_hash()));
+
+        // one more commit should do it...
+        bzn::peer_address_t node(*nodes++);
+        send_new_config_commit(pbft, node, op);
+
+        // and now the config should be enabled and acceptable
+        ASSERT_NE(this->pbft->configurations.get(config.get_hash()), nullptr);
+        EXPECT_TRUE(this->pbft->configurations.is_enabled(config.get_hash()));
+        EXPECT_NE(*(this->pbft->configurations.current()), config);
+        EXPECT_TRUE(this->pbft->is_configuration_acceptable_in_new_view(config.get_hash()));
+
+        // and no earlier one should be present (apart from the current configuration)
+        EXPECT_EQ(this->pbft->configurations.get(dummy_config->get_hash()), nullptr);
+        EXPECT_FALSE(this->pbft->is_configuration_acceptable_in_new_view(dummy_config->get_hash()));
     }
 }

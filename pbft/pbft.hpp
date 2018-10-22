@@ -167,6 +167,7 @@ namespace bzn
 
         FRIEND_TEST(pbft_test, test_new_config_preprepare_handling);
         FRIEND_TEST(pbft_test, test_new_config_prepare_handling);
+        FRIEND_TEST(pbft_test, test_new_config_commit_handling);
 
         std::shared_ptr<crypto_base> crypto;
     };
