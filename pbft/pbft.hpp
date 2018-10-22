@@ -130,6 +130,7 @@ namespace bzn
         const std::vector<bzn::peer_address_t>& current_peers() const;
         void broadcast_new_configuration(pbft_configuration::shared_const_ptr config, const pbft_msg& msg);
         bool is_configuration_acceptable_in_new_view(hash_t config_hash);
+        bool move_to_new_configuration(hash_t config_hash);
 
         // Using 1 as first value here to distinguish from default value of 0 in protobuf
         uint64_t view = 1;
@@ -168,6 +169,7 @@ namespace bzn
         FRIEND_TEST(pbft_test, test_new_config_preprepare_handling);
         FRIEND_TEST(pbft_test, test_new_config_prepare_handling);
         FRIEND_TEST(pbft_test, test_new_config_commit_handling);
+        FRIEND_TEST(pbft_test, test_move_to_new_config);
 
         std::shared_ptr<crypto_base> crypto;
     };

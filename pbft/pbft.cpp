@@ -870,3 +870,16 @@ pbft::string_to_json(const std::string& val)
 
     return bzn::json_message();
 }
+
+bool
+pbft::move_to_new_configuration(hash_t config_hash)
+{
+    if (this->configurations.is_enabled(config_hash))
+    {
+        this->configurations.set_current(config_hash);
+        this->configurations.remove_prior_to(config_hash);
+        return true;
+    }
+
+    return false;
+}

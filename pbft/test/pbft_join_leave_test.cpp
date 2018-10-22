@@ -255,4 +255,21 @@ TEST_F(pbft_test, test_new_config_preprepare_handling)
         EXPECT_EQ(this->pbft->configurations.get(dummy_config->get_hash()), nullptr);
         EXPECT_FALSE(this->pbft->is_configuration_acceptable_in_new_view(dummy_config->get_hash()));
     }
+
+    TEST_F(pbft_test, test_move_to_new_config)
+    {
+        this->build_pbft();
+
+        auto current_config = this->pbft->configurations.current();
+        auto config = std::make_shared<pbft_configuration>();
+        config->add_peer(new_peer);
+        this->pbft->configurations.add(config);
+        EXPECT_FALSE(this->pbft->move_to_new_configuration(config->get_hash()));
+
+        this->pbft->configurations.enable(config->get_hash());
+        EXPECT_TRUE(this->pbft->move_to_new_configuration(config->get_hash()));
+
+        // previous configuration should have been removed
+        EXPECT_EQ(this->pbft->configurations.get(current_config->get_hash()), nullptr);
+    }
 }
