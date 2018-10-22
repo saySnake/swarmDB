@@ -76,7 +76,9 @@ namespace bzn
                 .Times(Exactly(1));
         }
 
-        this->pbft->handle_message(join_msg);
+        auto wmsg = wrap_pbft_msg(join_msg);
+        wmsg.set_sender(new_peer.uuid);
+        this->pbft->handle_message(join_msg, wmsg);
     }
 
     namespace test
@@ -110,7 +112,9 @@ namespace bzn
                     .Times(Exactly(1));
             }
 
-            pbft->handle_message(preprepare);
+            auto wmsg = wrap_pbft_msg(preprepare);
+            wmsg.set_sender("bob");
+            pbft->handle_message(preprepare, wmsg);
             return preprepare;
         }
 
@@ -124,7 +128,9 @@ namespace bzn
             prepare.set_sender(node.uuid);
             prepare.set_allocated_request(new pbft_request(op->request));
 
-            pbft->handle_message(prepare);
+            auto wmsg = wrap_pbft_msg(prepare);
+            wmsg.set_sender(node.uuid);
+            pbft->handle_message(prepare, wmsg);
         }
 
         void
@@ -137,7 +143,9 @@ namespace bzn
             commit.set_sender(node.uuid);
             commit.set_allocated_request(new pbft_request(op->request));
 
-            pbft->handle_message(commit);
+            auto wmsg = wrap_pbft_msg(commit);
+            wmsg.set_sender(node.uuid);
+            pbft->handle_message(commit, wmsg);
         }
     }
 
