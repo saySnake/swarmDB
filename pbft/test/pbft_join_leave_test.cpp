@@ -81,6 +81,61 @@ namespace bzn
         this->pbft->handle_message(join_msg, wmsg);
     }
 
+    TEST_F(pbft_test, valid_leave_request_test)
+    {
+        this->build_pbft();
+        auto peer = *(TEST_PEER_LIST.begin());
+        auto info = new pbft_peer_info;
+        info->set_host(peer.host);
+        info->set_name(peer.name);
+        info->set_port(peer.port);
+        info->set_http_port(peer.http_port);
+        info->set_uuid(peer.uuid);
+
+        pbft_msg leave_msg;
+        leave_msg.mutable_request()->set_client(peer.uuid);
+        leave_msg.mutable_request()->set_timestamp(1);
+        leave_msg.set_type(PBFT_MSG_LEAVE);
+        leave_msg.set_allocated_peer_info(info);
+
+        // each peer should be sent a pre-prepare for new_config when the leave is received
+        for (auto const &p : TEST_PEER_LIST)
+        {
+            EXPECT_CALL(*(this->mock_node),
+                send_message_str(bzn::make_endpoint(p),
+                    message_is_correct_type(PBFT_MSG_PREPREPARE, PBFT_IMSG_NEW_CONFIG)))
+                .Times(Exactly(1));
+        }
+
+        auto wmsg = wrap_pbft_msg(leave_msg);
+        wmsg.set_sender(peer.uuid);
+        this->pbft->handle_message(leave_msg, wmsg);
+    }
+
+    TEST_F(pbft_test, invalid_leave_request_test)
+    {
+        this->build_pbft();
+
+        auto info = new pbft_peer_info;
+        info->set_host(new_peer.host);
+        info->set_name(new_peer.name);
+        info->set_port(new_peer.port);
+        info->set_http_port(new_peer.http_port);
+        info->set_uuid(new_peer.uuid);
+
+        pbft_msg leave_msg;
+        leave_msg.mutable_request()->set_client(new_peer.uuid);
+        leave_msg.mutable_request()->set_timestamp(1);
+        leave_msg.set_type(PBFT_MSG_LEAVE);
+        leave_msg.set_allocated_peer_info(info);
+
+        // leave message should be ignored
+
+        auto wmsg = wrap_pbft_msg(leave_msg);
+        wmsg.set_sender(new_peer.uuid);
+        this->pbft->handle_message(leave_msg, wmsg);
+    }
+
     namespace test
     {
         pbft_msg

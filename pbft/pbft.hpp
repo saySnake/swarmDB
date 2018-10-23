@@ -94,6 +94,7 @@ namespace bzn
         void handle_commit(const pbft_msg& msg, const wrapped_bzn_msg& original_msg);
         void handle_checkpoint(const pbft_msg& msg, const wrapped_bzn_msg& original_msg);
         void handle_join(const pbft_msg& msg);
+        void handle_leave(const pbft_msg& msg);
         void handle_internal_message(const pbft_msg& msg, const std::shared_ptr<pbft_operation>& op);
 
         void maybe_advance_operation_state(const std::shared_ptr<pbft_operation>& op);

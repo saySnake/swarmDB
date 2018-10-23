@@ -197,6 +197,9 @@ pbft::handle_message(const pbft_msg& msg, const wrapped_bzn_msg& original_msg)
         case PBFT_MSG_JOIN :
             this->handle_join(msg);
             break;
+        case PBFT_MSG_LEAVE :
+            this->handle_leave(msg);
+            break;
         default :
             throw std::runtime_error("Unsupported message type");
     }
@@ -343,6 +346,42 @@ pbft::handle_join(const pbft_msg& msg)
     else
     {
         LOG(debug) << "Malformed join message";
+    }
+
+}
+
+void
+pbft::handle_leave(const pbft_msg& msg)
+{
+    if (msg.has_peer_info())
+    {
+        // build a peer_address_t from the message
+        auto const &peer_info = msg.peer_info();
+        bzn::peer_address_t peer(peer_info.host(), static_cast<uint16_t>(peer_info.port()),
+            static_cast<uint16_t>(peer_info.http_port()), peer_info.name(), peer_info.uuid());
+
+        // TODO - validate message (signature?)
+
+        // see if we can remove this peer from a newly copied configuration
+        auto config = std::make_shared<pbft_configuration>(*(this->configurations.current()));
+        if (config->remove_peer(peer))
+        {
+            if (!this->configurations.add(config))
+            {
+                assert(false);
+            }
+
+            this->broadcast_new_configuration(config, msg);
+        }
+        else
+        {
+            // TODO - respond with negative result?
+            LOG(debug) << "Couldn't remove requested peer";
+        }
+    }
+    else
+    {
+        LOG(debug) << "Malformed leave message";
     }
 
 }
