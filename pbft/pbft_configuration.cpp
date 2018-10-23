@@ -220,3 +220,27 @@ pbft_configuration::valid_peer(const bzn::peer_address_t &peer) const
 
     return true;
 }
+
+std::pair<std::shared_ptr<std::vector<bzn::peer_address_t>>, std::shared_ptr<std::vector<bzn::peer_address_t>>>
+pbft_configuration::diff(const pbft_configuration& other)
+{
+    auto added = std::make_shared<std::vector<bzn::peer_address_t>>();
+    auto removed = std::make_shared<std::vector<bzn::peer_address_t>>();
+
+    auto& mine = this->peers;
+    auto& theirs = other.peers;
+
+    for (auto& p : mine)
+    {
+        if (theirs.find(p) == theirs.end())
+            removed->push_back(p);
+    }
+
+    for (auto& p : theirs)
+    {
+        if (mine.find(p) == mine.end())
+            added->push_back(p);
+    }
+
+    return std::make_pair(added, removed);
+}

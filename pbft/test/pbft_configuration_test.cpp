@@ -117,4 +117,25 @@ namespace
         EXPECT_FALSE(this->cfg.add_peer(bzn::peer_address_t("127.0.0.1", 8081, 8882, "name2", "uuid2")));
         EXPECT_TRUE(this->cfg.add_peer(bzn::peer_address_t("127.0.0.1", 8082, 8882, "name2", "uuid2")));
     }
+
+    TEST_F(pbft_configuration_test, diff_test)
+    {
+        bzn::pbft_configuration config1;
+        config1.add_peer(TEST_PEER_LIST[0]);
+        config1.add_peer(TEST_PEER_LIST[1]);
+        config1.add_peer(TEST_PEER_LIST[2]);
+
+        bzn::pbft_configuration config2;
+        config2.add_peer(TEST_PEER_LIST[0]);
+        config2.add_peer(TEST_PEER_LIST[2]);
+        config2.add_peer(TEST_PEER_LIST[3]);
+
+        auto diffs = config1.diff(config2);
+        auto added = diffs.first;
+        auto removed = diffs.second;
+        ASSERT_EQ(added->size(), 1U);
+        EXPECT_EQ(added->front(), TEST_PEER_LIST[3]);
+        ASSERT_EQ(removed->size(), 1U);
+        EXPECT_EQ(removed->front(), TEST_PEER_LIST[1]);
+    }
 }

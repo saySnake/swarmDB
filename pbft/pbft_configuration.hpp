@@ -52,6 +52,11 @@ namespace bzn
         // removes an existing peer - returns true if found and removed
         bool remove_peer(const bzn::peer_address_t& peer);
 
+        // computes differences between this config and another
+        // returns pair of vectors of added and removed peers
+        std::pair<std::shared_ptr<std::vector<bzn::peer_address_t>>, std::shared_ptr<std::vector<bzn::peer_address_t>>>
+            diff(const pbft_configuration& other);
+
     private:
         void cache_sorted_peers();
         bool conflicting_peer_exists(const bzn::peer_address_t &peer) const;
