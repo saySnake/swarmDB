@@ -17,15 +17,16 @@
 #include <pbft/pbft_failure_detector_base.hpp>
 #include <gmock/gmock.h>
 #include <functional>
+#include <crypto/crypto.hpp>
 
 namespace bzn
 {
     class Mockpbft_failure_detector_base : public pbft_failure_detector_base
     {
     public:
-        MOCK_METHOD1(request_seen, void(const pbft_request& req));
+        MOCK_METHOD1(request_seen, void(const bzn::hash_t& req));
 
-        MOCK_METHOD1(request_executed, void(const pbft_request& req));
+        MOCK_METHOD1(request_executed, void(const bzn::hash_t& req));
 
         MOCK_METHOD1(register_failure_handler, void(std::function<void()> handler));
     };

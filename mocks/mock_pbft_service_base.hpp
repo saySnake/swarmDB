@@ -23,15 +23,15 @@ namespace bzn {
     class mock_pbft_service_base : public pbft_service_base {
      public:
       MOCK_METHOD2(apply_operation,
-          void(const pbft_request& request, uint64_t sequence_number));
+          void(const database_msg& request, uint64_t sequence_number));
       MOCK_CONST_METHOD2(query,
-          void(const pbft_request& request, uint64_t sequence_number));
+          void(const database_msg& request, uint64_t sequence_number));
       MOCK_CONST_METHOD1(service_state_hash,
           bzn::hash_t(uint64_t sequence_number));
       MOCK_METHOD1(consolidate_log,
           void(uint64_t sequence_number));
       MOCK_METHOD1(register_execute_handler,
-          void(std::function<void(const pbft_request&, uint64_t)> handler));
+          void(std::function<void(const bzn::hash_t&, uint64_t)> handler));
       MOCK_METHOD1(apply_operation,
           void(const std::shared_ptr<pbft_operation>&));
     };

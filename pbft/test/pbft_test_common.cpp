@@ -12,6 +12,7 @@
 // You should have received a copy of the GNU Affero General Public License
 
 #include <pbft/test/pbft_test_common.hpp>
+#include <boost/beast/core/detail/base64.hpp>
 
 namespace bzn::test
 {
@@ -77,17 +78,19 @@ namespace bzn::test
                                 { this->service_execute_handler = handler; }
                         ));
 
-        this->request_msg.set_allocated_operation(new database_msg());
+        bzn_msg outer_msg;
+        this->request_msg.mutable_header()->set_transaction_id(5);
+        outer_msg.set_allocated_db(new database_msg(this->request_msg));
 
         this->request_json["bzn-api"] = "database";
-        this->request_json["msg"] = boost::beast::detail::base64_encode(this->request_msg.SerializeAsString());
+        this->request_json["msg"] = boost::beast::detail::base64_encode(outer_msg.SerializeAsString());
 
         preprepare_msg = pbft_msg();
         preprepare_msg.set_type(PBFT_MSG_PREPREPARE);
         preprepare_msg.set_sequence(19);
         preprepare_msg.set_view(1);
-        preprepare_msg.mutable_request()->set_client("bob");
-        preprepare_msg.mutable_request()->set_timestamp(1);
+        preprepare_msg.set_request("do some stuff");
+        preprepare_msg.set_request_hash(this->crypto->hash(preprepare_msg.request()));
     }
 
     void
@@ -100,6 +103,7 @@ namespace bzn::test
                 , this->uuid
                 , this->mock_service
                 , this->mock_failure_detector
+                , this->crypto
         );
         this->pbft->set_audit_enabled(false);
         this->pbft->start();
@@ -203,7 +207,9 @@ namespace bzn::test
     wrap_request(const database_msg& db)
     {
         bzn::json_message json;
-        json["msg"] = boost::beast::detail::base64_encode(db.SerializeAsString());
+        bzn_msg outer;
+        outer.set_allocated_db(new database_msg(db));
+        json["msg"] = boost::beast::detail::base64_encode(outer.SerializeAsString());
         json["bzn-api"] = "database";
 
         return json;

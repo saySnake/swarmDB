@@ -18,6 +18,8 @@
 
 namespace bzn
 {
+    using hash_t = std::string;
+
     class crypto_base
     {
     public:

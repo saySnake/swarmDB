@@ -123,19 +123,13 @@ namespace bzn::test
         this->build_pbft();
         EXPECT_CALL(*mock_node, send_message_str(_, _)).Times(Exactly(TEST_PEER_LIST.size()));
 
-        pbft_msg prepreparea(this->preprepare_msg);
         pbft_msg preprepareb(this->preprepare_msg);
-        pbft_msg prepreparec(this->preprepare_msg);
-        pbft_msg preprepared(this->preprepare_msg);
 
-        preprepareb.mutable_request()->set_timestamp(99);
-        prepreparec.mutable_request()->mutable_operation();
-        preprepared.mutable_request()->set_client("certainly not bob");
+        preprepareb.set_request("b");
+        preprepareb.set_request_hash(this->crypto->hash("b"));
 
-        this->pbft->handle_message(prepreparea, default_original_msg);
+        this->pbft->handle_message(this->preprepare_msg, default_original_msg);
         this->pbft->handle_message(preprepareb, default_original_msg);
-        this->pbft->handle_message(prepreparec, default_original_msg);
-        this->pbft->handle_message(preprepared, default_original_msg);
     }
 
     TEST_F(pbft_test, test_commit_messages_sent)
@@ -218,9 +212,8 @@ namespace bzn::test
         auto mock_session = std::make_shared<bzn::Mocksession_base>();
         EXPECT_CALL(*mock_session, send_datagram(_)).Times(Exactly(1));
 
-        pbft_request msg;
         auto peers = std::make_shared<const std::vector<bzn::peer_address_t>>();
-        auto op = std::make_shared<pbft_operation>(1, 1, msg, peers);
+        auto op = std::make_shared<pbft_operation>(1, 1, "some hash", peers);
         op->set_session(mock_session);
 
         dummy_pbft_service service(this->mock_io_context);
@@ -250,7 +243,7 @@ namespace bzn::test
     }
 
     TEST_F(pbft_test, request_redirect_to_primary_notifies_failure_detector) {
-        EXPECT_CALL(*mock_failure_detector, request_seen(_)).Times(Exactly(0));
+        EXPECT_CALL(*mock_failure_detector, request_seen(_)).Times(Exactly(1));
 
         this->uuid = SECOND_NODE_UUID;
         this->build_pbft();

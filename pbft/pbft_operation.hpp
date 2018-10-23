@@ -20,12 +20,12 @@
 #include <cstdint>
 #include <string>
 #include <node/session_base.hpp>
+#include <crypto/crypto_base.hpp>
 
 namespace bzn
 {
-    using hash_t = std::string;
     // View, sequence
-    using operation_key_t = std::tuple<uint64_t, uint64_t, hash_t>;
+    using operation_key_t = std::tuple<uint64_t, uint64_t, bzn::hash_t>;
 
     // View, sequence
     using log_key_t = std::tuple<uint64_t, uint64_t>;
@@ -35,27 +35,26 @@ namespace bzn
         prepare, commit, committed
     };
 
-
     class pbft_operation
     {
     public:
 
-        pbft_operation(uint64_t view, uint64_t sequence, pbft_request msg, std::shared_ptr<const std::vector<peer_address_t>> peers);
+        pbft_operation(uint64_t view, uint64_t sequence, bzn::hash_t request_hash, std::shared_ptr<const std::vector<peer_address_t>> peers);
 
         void set_session(std::weak_ptr<bzn::session_base>);
-
-        static hash_t request_hash(const pbft_request& req);
 
         operation_key_t get_operation_key();
         pbft_operation_state get_state();
 
-        void record_preprepare(const wrapped_bzn_msg& encoded_preprepare);
+        void record_request(std::string request);
+
+        void record_preprepare(const pbft_msg& preprepare, const wrapped_bzn_msg& encoded_preprepare);
         bool has_preprepare();
 
-        void record_prepare(const wrapped_bzn_msg& encoded_prepare);
+        void record_prepare(const pbft_msg& prepare, const wrapped_bzn_msg& encoded_prepare);
         bool is_prepared();
 
-        void record_commit(const wrapped_bzn_msg& encoded_commit);
+        void record_commit(const pbft_msg& commit, const wrapped_bzn_msg& encoded_commit);
         bool is_committed();
 
         void begin_commit_phase();
@@ -63,15 +62,20 @@ namespace bzn
 
         std::weak_ptr<bzn::session_base> session();
 
+        bool has_request();
+        std::string get_request();
+
         const uint64_t view;
         const uint64_t sequence;
-        const pbft_request request;
+        const std::string request_hash;
 
         std::string debug_string();
 
         size_t faulty_nodes_bound() const;
 
     private:
+        void maybe_record_request(const pbft_msg& msg);
+
         const std::shared_ptr<const std::vector<peer_address_t>> peers;
 
         pbft_operation_state state = pbft_operation_state::prepare;
@@ -81,6 +85,8 @@ namespace bzn
         std::set<bzn::uuid_t> commits_seen;
 
         std::weak_ptr<bzn::session_base> listener_session;
+
+        std::string request;
 
     };
 }

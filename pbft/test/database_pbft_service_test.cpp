@@ -73,8 +73,9 @@ TEST(database_pbft_service, test_that_failed_storing_of_operation_throws)
     EXPECT_CALL(*mock_storage, create(_, _, _)).WillOnce(Return(bzn::storage_base::result::exists));
     EXPECT_CALL(*mock_storage, update(_, _, _)).WillOnce(Return(bzn::storage_base::result::ok));
 
-    pbft_request msg;
-    auto operation = std::make_shared<bzn::pbft_operation>(0, 1, msg, nullptr);
+    database_msg msg;
+    auto operation = std::make_shared<bzn::pbft_operation>(0, 1, "somehash", nullptr);
+    operation->record_request("some request");
 
     EXPECT_THROW(dps.apply_operation(operation), std::runtime_error);
 }
@@ -88,19 +89,21 @@ TEST(database_pbft_service, test_that_stored_operation_is_executed_in_order_and_
 
     bzn::database_pbft_service dps(mock_io_context, mem_storage, mock_crud, TEST_UUID);
 
-    pbft_request msg;
+    database_msg msg;
 
-    msg.mutable_operation()->mutable_header()->set_db_uuid(TEST_UUID);
-    msg.mutable_operation()->mutable_header()->set_transaction_id(uint64_t(123));
-    msg.mutable_operation()->mutable_create()->set_key("key2");
-    msg.mutable_operation()->mutable_create()->set_value("value2");
+    msg.mutable_header()->set_db_uuid(TEST_UUID);
+    msg.mutable_header()->set_transaction_id(uint64_t(123));
+    msg.mutable_create()->set_key("key2");
+    msg.mutable_create()->set_value("value2");
 
-    auto operation2 = std::make_shared<bzn::pbft_operation>(0, 2, msg, nullptr);
+    auto operation2 = std::make_shared<bzn::pbft_operation>(0, 2, "somehash", nullptr);
+    operation2->record_request(msg.SerializeAsString());
 
     dps.apply_operation(operation2);
 
     ASSERT_EQ(uint64_t(0), dps.applied_requests_count());
 
+<<<<<<< HEAD
     msg.mutable_operation()->mutable_header()->set_transaction_id(uint64_t(321));
     msg.mutable_operation()->mutable_create()->set_key("key3");
     msg.mutable_operation()->mutable_create()->set_value("value3");
@@ -153,7 +156,6 @@ TEST(database_pbft_service, test_that_stored_operation_is_executed_in_order_and_
                 ASSERT_TRUE(session); // operation3 session still around
             }));
     }
-
     dps.apply_operation(operation1);
 
     ASSERT_EQ(uint64_t(3), dps.applied_requests_count());

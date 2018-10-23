@@ -21,7 +21,7 @@
 
 namespace bzn
 {
-    using execute_handler_t = std::function<void(const pbft_request&, uint64_t)>;
+    using execute_handler_t = std::function<void(const bzn::hash_t&, uint64_t)>;
 
     class pbft_service_base
     {
@@ -75,7 +75,7 @@ namespace bzn
          * sequence number is >= any the service has seen before because we want the most recent version, or we are
          * querying some stable checkpoint to introduce a new node).
          */
-        virtual void query(const pbft_request& request, uint64_t sequence_number) const = 0;
+        virtual void query(const database_msg& request, uint64_t sequence_number) const = 0;
 
         /*
          * Get the hash of the database state (presumably this will be a merkle tree root, but the details don't matter

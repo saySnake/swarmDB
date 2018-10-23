@@ -33,6 +33,7 @@ pbft::pbft(
     , bzn::uuid_t uuid
     , std::shared_ptr<pbft_service_base> service
     , std::shared_ptr<pbft_failure_detector_base> failure_detector
+    , std::shared_ptr<bzn::crypto_base> crypto
     )
     : node(std::move(node))
     , uuid(std::move(uuid))
@@ -40,6 +41,7 @@ pbft::pbft(
     , failure_detector(std::move(failure_detector))
     , io_context(io_context)
     , audit_heartbeat_timer(this->io_context->make_unique_steady_timer())
+    , crypto(std::move(crypto))
 {
     if (peers.empty())
     {
@@ -74,9 +76,9 @@ pbft::start()
 
                 this->service->register_execute_handler(
                         [weak_this = this->weak_from_this(), fd = this->failure_detector]
-                                (const pbft_request& req, uint64_t sequence)
+                                (const hash_t& req_hash, uint64_t sequence)
                                         {
-                                            fd->request_executed(req);
+                                            fd->request_executed(req_hash);
 
                                             if (sequence % CHECKPOINT_INTERVAL == 0)
                                             {
@@ -183,9 +185,10 @@ pbft::handle_message(const pbft_msg& msg, const wrapped_bzn_msg& original_msg)
         return;
     }
 
-    if (msg.has_request())
+    if (!msg.request_hash().empty())
     {
-        this->failure_detector->request_seen(msg.request());
+        //TODO: KEP-735
+        this->failure_detector->request_seen(msg.request_hash());
     }
 
     std::lock_guard<std::mutex> lock(this->pbft_lock);
@@ -232,6 +235,18 @@ pbft::preliminary_filter_msg(const pbft_msg& msg)
             LOG(debug) << "Dropping message becasue it has an unreasonable sequence number " << msg.sequence();
             return false;
         }
+
+        if (msg.request_hash().empty())
+        {
+            LOG(debug) << "Dropping message because it has no request hash " << msg.DebugString();
+            return false;
+        }
+
+        if (!msg.request().empty() && msg.request_hash() != this->crypto->hash((msg.request())))
+        {
+            LOG(debug) << "Dropping message because its request hash " << msg.request_hash() << " does not match its request " << msg.request();
+            return false;
+        }
     }
 
     return true;
@@ -252,12 +267,21 @@ pbft::setup_request_operation(const pbft_request& msg, const std::shared_ptr<ses
 }
 
 void
-pbft::handle_request(const pbft_request& msg, const bzn::json_message& original_msg, const std::shared_ptr<session_base>& session)
+pbft::handle_request(const bzn::encoded_message& msg, const bzn::json_message& original_msg, const std::shared_ptr<session_base>& session)
 {
+    if (msg.empty())
+    {
+        LOG(error) << "Ignoring empty client request";
+        return;
+    }
+
+    auto req_hash = this->crypto->hash(msg);
+
     if (!this->is_primary())
     {
         LOG(info) << "Forwarding request to primary: " << original_msg.toStyledString();
         this->node->send_message(bzn::make_endpoint(this->get_primary()), std::make_shared<bzn::json_message>(original_msg));
+        this->failure_detector->request_seen(req_hash);
         return;
     }
 
@@ -266,6 +290,7 @@ pbft::handle_request(const pbft_request& msg, const bzn::json_message& original_
     //TODO: keep track of what requests we've seen based on timestamp and only send preprepares once - KEP-329
 
     auto op = setup_request_operation(msg, session);
+    op->record_request(msg);
     this->do_preprepare(op);
 }
 
@@ -278,7 +303,7 @@ pbft::handle_preprepare(const pbft_msg& msg, const wrapped_bzn_msg& original_msg
 
     if (auto lookup = this->accepted_preprepares.find(log_key);
         lookup != this->accepted_preprepares.end()
-        && std::get<2>(lookup->second) != pbft_operation::request_hash(msg.request()))
+        && std::get<2>(lookup->second) != msg.request_hash())
     {
 
         LOG(debug) << "Rejecting preprepare because I've already accepted a conflicting one \n";
@@ -287,7 +312,7 @@ pbft::handle_preprepare(const pbft_msg& msg, const wrapped_bzn_msg& original_msg
     else
     {
         auto op = this->find_operation(msg);
-        op->record_preprepare(original_msg);
+        op->record_preprepare(msg, original_msg);
 
         // This assignment will be redundant if we've seen this preprepare before, but that's fine
         accepted_preprepares[log_key] = op->get_operation_key();
@@ -308,7 +333,7 @@ pbft::handle_prepare(const pbft_msg& msg, const wrapped_bzn_msg& original_msg)
     // Prepare messages are never rejected, assuming the sanity checks passed
     auto op = this->find_operation(msg);
 
-    op->record_prepare(original_msg);
+    op->record_prepare(msg, original_msg);
     this->maybe_advance_operation_state(op);
 }
 
@@ -318,7 +343,7 @@ pbft::handle_commit(const pbft_msg& msg, const wrapped_bzn_msg& original_msg)
     // Commit messages are never rejected, assuming  the sanity checks passed
     auto op = this->find_operation(msg);
 
-    op->record_commit(original_msg);
+    op->record_commit(msg, original_msg);
     this->maybe_advance_operation_state(op);
 }
 
@@ -400,7 +425,7 @@ pbft::common_message_setup(const std::shared_ptr<pbft_operation>& op, pbft_msg_t
     pbft_msg msg;
     msg.set_view(op->view);
     msg.set_sequence(op->sequence);
-    msg.set_allocated_request(new pbft_request(op->request));
+    msg.set_request_hash(op->request_hash);
     msg.set_type(type);
 
     return msg;
@@ -412,6 +437,7 @@ pbft::do_preprepare(const std::shared_ptr<pbft_operation>& op)
     LOG(debug) << "Doing preprepare for operation " << op->debug_string();
 
     pbft_msg msg = this->common_message_setup(op, PBFT_MSG_PREPREPARE);
+    msg.set_request(op->get_request());
 
     this->broadcast(this->wrap_message(msg, "preprepare"));
 }
@@ -467,15 +493,14 @@ pbft::do_committed(const std::shared_ptr<pbft_operation>& op)
     if (this->audit_enabled)
     {
         audit_message msg;
-        msg.mutable_pbft_commit()->set_operation(pbft_operation::request_hash(op->request));
+        msg.mutable_pbft_commit()->set_request_hash(op->request_hash);
         msg.mutable_pbft_commit()->set_sequence_number(op->sequence);
         msg.mutable_pbft_commit()->set_sender_uuid(this->uuid);
 
         this->broadcast(this->wrap_message(msg));
     }
 
-    // Get a new shared pointer to the operation so that we can give pbft_service ownership on it
-    this->io_context->post(std::bind(&pbft_service_base::apply_operation, this->service, this->find_operation(op)));
+    this->io_context->post(std::bind(&pbft_service_base::apply_operation, this->service, op));
 }
 
 size_t
@@ -500,27 +525,20 @@ pbft::get_primary() const
 std::shared_ptr<pbft_operation>
 pbft::find_operation(const pbft_msg& msg)
 {
-    return this->find_operation(msg.view(), msg.sequence(), msg.request());
+    return this->find_operation(msg.view(), msg.sequence(), msg.request_hash());
 }
 
 std::shared_ptr<pbft_operation>
-pbft::find_operation(const std::shared_ptr<pbft_operation>& op)
+pbft::find_operation(uint64_t view, uint64_t sequence, const hash_t& request_hash)
 {
-    return this->find_operation(op->view, op->sequence, op->request);
-}
-
-std::shared_ptr<pbft_operation>
-pbft::find_operation(uint64_t view, uint64_t sequence, const pbft_request& request)
-{
-    auto key = bzn::operation_key_t(view, sequence, pbft_operation::request_hash(request));
+    auto key = bzn::operation_key_t(view, sequence, request_hash);
 
     auto lookup = operations.find(key);
     if (lookup == operations.end())
     {
-        LOG(debug) << "Creating operation for seq " << sequence << " view " << view << " req "
-                   << request.ShortDebugString();
+        LOG(debug) << "Creating operation for seq " << sequence << " view " << view << " req " << request_hash;
 
-        std::shared_ptr<pbft_operation> op = std::make_shared<pbft_operation>(view, sequence, request,
+        std::shared_ptr<pbft_operation> op = std::make_shared<pbft_operation>(view, sequence, request_hash,
                 this->current_peers_ptr());
         auto result = operations.emplace(std::piecewise_construct, std::forward_as_tuple(std::move(key)), std::forward_as_tuple(op));
 
@@ -750,13 +768,8 @@ pbft::handle_database_message(const bzn::json_message& json, std::shared_ptr<bzn
         return;
     }
 
-    *response.mutable_header() = msg.db().header();
-
-    pbft_request req;
-    *req.mutable_operation() = msg.db();
-    req.set_timestamp(0); //TODO: KEP-611
-
-    this->handle_request(req, json, session);
+    // TODO: Should not be re-serializing here (breaks request hashes)
+    this->handle_request(msg.db().SerializeAsString(), json, session);
 
     LOG(debug) << "Sending request ack: " << response.ShortDebugString();
     session->send_message(std::make_shared<bzn::encoded_message>(response.SerializeAsString()), false);

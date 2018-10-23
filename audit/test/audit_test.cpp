@@ -197,13 +197,13 @@ TEST_F(audit_test, audit_throws_error_when_pbft_commits_conflict)
 
     pbft_commit_notification a, b, c;
 
-    a.set_operation("do something");
+    a.set_request_hash("do something");
     a.set_sequence_number(1);
 
-    b.set_operation("do a different thing");
+    b.set_request_hash("do a different thing");
     b.set_sequence_number(2);
 
-    c.set_operation("do something else");
+    c.set_request_hash("do something else");
     c.set_sequence_number(1);
 
     this->audit->handle_pbft_commit(a);

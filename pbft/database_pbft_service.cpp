@@ -50,10 +50,10 @@ database_pbft_service::apply_operation(const std::shared_ptr<bzn::pbft_operation
     std::lock_guard<std::mutex> lock(this->lock);
 
     // store op...
-    if (auto result = this->unstable_storage->create(this->uuid, std::to_string(op->sequence), op->request.SerializeAsString());
+    if (auto result = this->unstable_storage->create(this->uuid, std::to_string(op->sequence), op->get_request());
         result != bzn::storage_base::result::ok)
     {
-        LOG(fatal) << "failed to store pbft request: " << op->request.DebugString() << ", " << uint32_t(result);
+        LOG(fatal) << "failed to store pbft request: " << op->request_hash << ", " << uint32_t(result);
 
         // these are fatal... something bad is going on.
         throw std::runtime_error("Failed to store pbft request! (" + std::to_string(uint8_t(result)) + ")");
@@ -81,7 +81,7 @@ database_pbft_service::process_awaiting_operations()
             throw std::runtime_error("Failed to store pbft request!");
         }
 
-        pbft_request request;
+        database_msg request;
 
         if (!request.ParseFromString(*result))
         {
@@ -104,7 +104,7 @@ database_pbft_service::process_awaiting_operations()
             this->crud->handle_request(request.operation(), nullptr);
         }
 
-        this->io_context->post(std::bind(this->execute_handler, request, this->next_request_sequence));
+        this->io_context->post(std::bind(this->execute_handler, "" /* TODO - this should be the original req_hash */, this->next_request_sequence));
 
         if (auto result = this->unstable_storage->remove(uuid, key); result != bzn::storage_base::result::ok)
         {
@@ -120,7 +120,7 @@ database_pbft_service::process_awaiting_operations()
 
 
 void
-database_pbft_service::query(const pbft_request& request, uint64_t sequence_number) const
+database_pbft_service::query(const database_msg& request, uint64_t sequence_number) const
 {
     // TODO: not sure how this works...
 

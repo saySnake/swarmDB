@@ -23,6 +23,7 @@
 
 namespace bzn
 {
+
     class crypto : public bzn::crypto_base
     {
     public:

@@ -48,6 +48,7 @@ namespace bzn
             , bzn::uuid_t uuid
             , std::shared_ptr<pbft_service_base> service
             , std::shared_ptr<pbft_failure_detector_base> failure_detector
+            , std::shared_ptr<bzn::crypto_base> crypto
             );
 
         void start() override;
@@ -83,13 +84,12 @@ namespace bzn
         bzn::json_message get_status() override;
 
     private:
-        std::shared_ptr<pbft_operation> find_operation(uint64_t view, uint64_t sequence, const pbft_request& request);
+        std::shared_ptr<pbft_operation> find_operation(uint64_t view, uint64_t sequence, const hash_t& request_hash);
         std::shared_ptr<pbft_operation> find_operation(const pbft_msg& msg);
-        std::shared_ptr<pbft_operation> find_operation(const std::shared_ptr<pbft_operation>& op);
 
         bool preliminary_filter_msg(const pbft_msg& msg);
 
-        void handle_request(const pbft_request& msg, const bzn::json_message& original_msg, const std::shared_ptr<session_base>& session = nullptr);
+        void handle_request(const bzn::encoded_message& request, const bzn::json_message& original_msg, const std::shared_ptr<session_base>& session = nullptr);
         void handle_preprepare(const pbft_msg& msg, const wrapped_bzn_msg& original_msg);
         void handle_prepare(const pbft_msg& msg, const wrapped_bzn_msg& original_msg);
         void handle_commit(const pbft_msg& msg, const wrapped_bzn_msg& original_msg);

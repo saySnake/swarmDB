@@ -39,17 +39,30 @@ namespace
     class pbft_operation_test : public Test
     {
     public:
-        pbft_request request;
+        bzn::encoded_message request;
         uint64_t view = 6;
         uint64_t sequence = 19;
 
         bzn::pbft_operation op;
 
+        pbft_msg preprepare_msg;
+        pbft_msg prepare_msg;
+        pbft_msg commit_msg;
         wrapped_bzn_msg empty_original_msg;
 
         pbft_operation_test()
                 : op(view, sequence, request, std::make_shared<std::vector<bzn::peer_address_t>>(TEST_PEER_LIST))
         {
+            this->preprepare_msg.set_type(PBFT_MSG_PREPREPARE);
+            this->preprepare_msg.set_sequence(19);
+            this->preprepare_msg.set_view(1);
+            this->preprepare_msg.set_request("a");
+            this->preprepare_msg.set_request_hash("a");
+
+            this->prepare_msg = pbft_msg(this->preprepare_msg);
+            this->prepare_msg.set_type(PBFT_MSG_PREPARE);
+            this->commit_msg = pbft_msg(this->preprepare_msg);
+            this->commit_msg.set_type(PBFT_MSG_COMMIT);
         }
     };
 
@@ -62,14 +75,12 @@ namespace
 
     TEST_F(pbft_operation_test, prepared_after_all_msgs)
     {
-        wrapped_bzn_msg preprepare;
-        this->op.record_preprepare(preprepare);
+        this->op.record_preprepare(preprepare_msg, empty_original_msg);
 
         for (const auto& peer : TEST_PEER_LIST)
         {
-            wrapped_bzn_msg msg;
-            msg.set_sender(peer.uuid);
-            op.record_prepare(msg);
+            this->empty_original_msg.set_sender(peer.uuid);
+            op.record_prepare(this->prepare_msg, this->empty_original_msg);
         }
 
         EXPECT_TRUE(this->op.is_prepared());
@@ -80,9 +91,8 @@ namespace
     {
         for (const auto& peer : TEST_PEER_LIST)
         {
-            wrapped_bzn_msg msg;
-            msg.set_sender(peer.uuid);
-            op.record_prepare(msg);
+            empty_original_msg.set_sender(peer.uuid);
+            op.record_prepare(this->prepare_msg, empty_original_msg);
         }
 
         EXPECT_FALSE(this->op.is_prepared());
@@ -91,14 +101,12 @@ namespace
 
     TEST_F(pbft_operation_test, not_prepared_with_2f)
     {
-        wrapped_bzn_msg preprepare;
-        this->op.record_preprepare(preprepare);
+        this->op.record_preprepare(this->preprepare_msg, empty_original_msg);
 
         for (const auto& peer : TEST_2F_PEER_LIST)
         {
-            wrapped_bzn_msg msg;
-            msg.set_sender(peer.uuid);
-            op.record_prepare(msg);
+            this->empty_original_msg.set_sender(peer.uuid);
+            op.record_prepare(this->prepare_msg, empty_original_msg);
         }
 
         EXPECT_FALSE(this->op.is_prepared());
@@ -107,16 +115,47 @@ namespace
 
     TEST_F(pbft_operation_test, prepared_with_2f_PLUS_1)
     {
-        wrapped_bzn_msg preprepare;
-        this->op.record_preprepare(preprepare);
+        this->op.record_preprepare(this->preprepare_msg, empty_original_msg);
 
         for (const auto& peer : TEST_2F_PLUS_1_PEER_LIST)
         {
-            wrapped_bzn_msg msg;
-            msg.set_sender(peer.uuid);
-            op.record_prepare(msg);
+            this->empty_original_msg.set_sender(peer.uuid);
+            op.record_prepare(this->prepare_msg, this->empty_original_msg);
         }
 
+        EXPECT_TRUE(this->op.is_prepared());
+    }
+
+    TEST_F(pbft_operation_test, not_prepared_without_request)
+    {
+        this->preprepare_msg.set_request("");
+        this->prepare_msg.set_request("");
+        this->op.record_preprepare(this->preprepare_msg, empty_original_msg);
+
+        for (const auto& peer : TEST_2F_PLUS_1_PEER_LIST)
+        {
+            this->empty_original_msg.set_sender(peer.uuid);
+            op.record_prepare(this->prepare_msg, this->empty_original_msg);
+        }
+
+        EXPECT_FALSE(this->op.is_prepared());
+    }
+
+    TEST_F(pbft_operation_test, prepared_with_late_request)
+    {
+        std::string original_request = this->preprepare_msg.request();
+        this->preprepare_msg.set_request("");
+        this->prepare_msg.set_request("");
+        this->op.record_preprepare(this->preprepare_msg, empty_original_msg);
+
+        for (const auto& peer : TEST_2F_PLUS_1_PEER_LIST)
+        {
+            this->empty_original_msg.set_sender(peer.uuid);
+            op.record_prepare(this->prepare_msg, this->empty_original_msg);
+        }
+
+        EXPECT_FALSE(this->op.is_prepared());
+        this->op.record_request(original_request);
         EXPECT_TRUE(this->op.is_prepared());
     }
 }

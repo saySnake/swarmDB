@@ -36,7 +36,7 @@ namespace bzn
 
         void apply_operation(const std::shared_ptr<bzn::pbft_operation>& op);
 
-        void query(const pbft_request& request, uint64_t sequence_number) const;
+        void query(const database_msg& request, uint64_t sequence_number) const;
 
         bzn::hash_t service_state_hash(uint64_t sequence_number) const;
 

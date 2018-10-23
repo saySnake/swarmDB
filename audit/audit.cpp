@@ -411,17 +411,17 @@ audit::handle_pbft_commit(const pbft_commit_notification& commit)
 
     if (this->recorded_pbft_commits.count(commit.sequence_number()) == 0)
     {
-        LOG(info) << "audit recording that message '" << commit.operation() << "' is committed at sequence " << commit.sequence_number();
-        this->recorded_pbft_commits[commit.sequence_number()] = commit.operation();
+        LOG(info) << "audit recording that message '" << commit.request_hash() << "' is committed at sequence " << commit.sequence_number();
+        this->recorded_pbft_commits[commit.sequence_number()] = commit.request_hash();
         this->trim();
     }
-    else if (this->recorded_pbft_commits[commit.sequence_number()] != commit.operation())
+    else if (this->recorded_pbft_commits[commit.sequence_number()] != commit.request_hash())
     {
         std::string err = str(boost::format(
                 "Conflicting commit detected! '%1%' is the recorded entry at sequence %2%, but '%3%' has been committed with the same sequence.")
                               % this->recorded_pbft_commits[commit.sequence_number()]
                               % commit.sequence_number()
-                              % commit.operation());
+                              % commit.request_hash());
         this->report_error(bzn::PBFT_COMMIT_CONFLICT_METRIC_NAME, err);
     }
 }

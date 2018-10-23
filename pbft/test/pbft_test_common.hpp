@@ -28,6 +28,7 @@
 #include <mocks/mock_pbft_failure_detector.hpp>
 #include <mocks/mock_pbft_service_base.hpp>
 #include <mocks/mock_session_base.hpp>
+#include <options/options.hpp>
 
 using namespace ::testing;
 
@@ -46,7 +47,8 @@ namespace bzn::test
     {
     public:
         bzn::json_message request_json;
-        pbft_request request_msg;
+        database_msg request_msg;
+        bzn::hash_t request_hash;
 
         pbft_msg preprepare_msg;
         wrapped_bzn_msg default_original_msg;
@@ -60,6 +62,8 @@ namespace bzn::test
                 std::make_shared<NiceMock<bzn::mock_pbft_service_base>>();
         std::shared_ptr<bzn::Mocksession_base> mock_session =
                 std::make_shared<NiceMock<bzn::Mocksession_base>>();
+        std::shared_ptr<bzn::options> options = std::make_shared<bzn::options>();
+        std::shared_ptr<bzn::crypto_base> crypto = std::make_shared<bzn::crypto>(this->options);
 
         std::shared_ptr<bzn::pbft> pbft;
 
@@ -68,7 +72,7 @@ namespace bzn::test
 
         bzn::asio::wait_handler audit_heartbeat_timer_callback;
 
-        std::function<void(const pbft_request&, uint64_t)> service_execute_handler;
+        bzn::execute_handler_t service_execute_handler;
         bzn::protobuf_handler message_handler;
         bzn::message_handler database_handler;
 

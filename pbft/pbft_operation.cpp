@@ -18,17 +18,18 @@
 
 using namespace bzn;
 
-pbft_operation::pbft_operation(uint64_t view, uint64_t sequence, pbft_request request, std::shared_ptr<const std::vector<peer_address_t>> peers)
+pbft_operation::pbft_operation(uint64_t view, uint64_t sequence, hash_t request_hash, std::shared_ptr<const std::vector<peer_address_t>> peers)
         : view(view)
-          , sequence(sequence)
-          , request(std::move(request))
-          , peers(std::move(peers))
+        , sequence(sequence)
+        , request_hash(request_hash)
+        , peers(std::move(peers))
 {
 }
 
 void
-pbft_operation::record_preprepare(const wrapped_bzn_msg& /*encoded_preprepare*/)
+pbft_operation::record_preprepare(const pbft_msg& preprepare, const wrapped_bzn_msg& /*encoded_preprepare*/)
 {
+    this->maybe_record_request(preprepare);
     this->preprepare_seen = true;
 }
 
@@ -39,8 +40,9 @@ pbft_operation::has_preprepare()
 }
 
 void
-pbft_operation::record_prepare(const wrapped_bzn_msg& encoded_prepare)
+pbft_operation::record_prepare(const pbft_msg& prepare, const wrapped_bzn_msg& encoded_prepare)
 {
+    this->maybe_record_request(prepare);
     // TODO: Save message
     this->prepares_seen.insert(encoded_prepare.sender());
 }
@@ -54,12 +56,13 @@ pbft_operation::faulty_nodes_bound() const
 bool
 pbft_operation::is_prepared()
 {
-    return this->has_preprepare() && this->prepares_seen.size() > 2 * this->faulty_nodes_bound();
+    return this->has_preprepare() && this->has_request() && this->prepares_seen.size() > 2 * this->faulty_nodes_bound();
 }
 
 void
-pbft_operation::record_commit(const wrapped_bzn_msg& encoded_commit)
+pbft_operation::record_commit(const pbft_msg& commit, const wrapped_bzn_msg& encoded_commit)
 {
+    this->maybe_record_request(commit);
     this->commits_seen.insert(encoded_commit.sender());
 }
 
@@ -94,7 +97,7 @@ pbft_operation::end_commit_phase()
 operation_key_t
 pbft_operation::get_operation_key()
 {
-    return std::tuple<uint64_t, uint64_t, hash_t>(this->view, this->sequence, request_hash(this->request));
+    return std::tuple<uint64_t, uint64_t, hash_t>(this->view, this->sequence, this->request_hash);
 }
 
 pbft_operation_state
@@ -106,14 +109,7 @@ pbft_operation::get_state()
 std::string
 pbft_operation::debug_string()
 {
-    return boost::str(boost::format("(v%1%, s%2%) - %3%") % this->view % this->sequence % this->request.ShortDebugString());
-}
-
-bzn::hash_t
-pbft_operation::request_hash(const pbft_request& req)
-{
-    // TODO: Actually hash the request; KEP-466
-    return req.ShortDebugString();
+    return boost::str(boost::format("(v%1%, s%2%) - %3%[%4%]") % this->view % this->sequence % this->request % this->request_hash);
 }
 
 void
@@ -126,4 +122,37 @@ std::weak_ptr<bzn::session_base>
 pbft_operation::session()
 {
     return this->listener_session;
+}
+
+bool
+pbft_operation::has_request()
+{
+    return !this->request.empty();
+}
+
+std::string
+pbft_operation::get_request()
+{
+    if (!this->has_request())
+    {
+        throw new std::runtime_error("pbft_operation does not have the request");
+    }
+
+    return this->request;
+}
+
+void
+pbft_operation::maybe_record_request(const pbft_msg& msg)
+{
+    // We are assuming that the caller has checked to make sure that the request and its hash match
+    if (this->request.empty() && !msg.request().empty())
+    {
+        this->request = msg.request();
+    }
+}
+
+void
+pbft_operation::record_request(std::string request)
+{
+    this->request = request;
 }
