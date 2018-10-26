@@ -78,10 +78,6 @@ namespace bzn::test
                                 { this->service_execute_handler = handler; }
                         ));
 
-        //request_msg.mutable_request()->set_operation("do some stuff");
-        request_msg.mutable_request()->set_client("bob");
-        request_msg.mutable_request()->set_timestamp(1);
-        request_msg.set_type(PBFT_MSG_REQUEST);
         this->request_msg.set_allocated_operation(new database_msg());
 
         this->request_json["bzn-api"] = "database";
