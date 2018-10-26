@@ -76,7 +76,15 @@ namespace bzn
 
         const std::string& get_preprepare() const { return this->preprepare_message; };
 
-        const std::set<std::string>& get_prepares() const { return this->prepare_messages; };
+        const std::set<std::string> get_prepares() const
+        {
+            std::set<std::string> prepares;
+            for (const auto& message : this->prepare_messages)
+            {
+                prepares.insert(message.second);
+            }
+            return prepares;
+        };
 
     private:
         const std::shared_ptr<const std::vector<peer_address_t>> peers;
@@ -90,6 +98,7 @@ namespace bzn
         std::weak_ptr<bzn::session_base> listener_session;
 
         std::string preprepare_message;
+        std::map<uuid_t, std::string> prepare_messages;  // uuid_t is the sender uuid, prepared messages
         std::map<uuid_t, std::string> prepare_messages;  // uuid_t is the sender uuid
         bzn::encoded_message encoded_request;
         pbft_request parsed_request;
