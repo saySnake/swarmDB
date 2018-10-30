@@ -177,6 +177,8 @@ namespace bzn
         FRIEND_TEST(pbft_test, test_new_config_commit_handling);
         FRIEND_TEST(pbft_test, test_move_to_new_config);
 
+        friend class pbft_proto_test;
+
         std::shared_ptr<crypto_base> crypto;
     };
 
