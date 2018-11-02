@@ -109,7 +109,7 @@ namespace bzn
         bzn::encoded_message wrap_message(const audit_message& message, const std::string& debug_info = "");
         
         pbft_msg common_message_setup(const std::shared_ptr<pbft_operation>& op, pbft_msg_type type);
-        std::shared_ptr<pbft_operation> setup_request_operation(const pbft_request& msg
+        std::shared_ptr<pbft_operation> setup_request_operation(const bzn::encoded_message& req, const bzn::hash_t& req_hash
             , const std::shared_ptr<session_base>& session = nullptr);
 
         void broadcast(const bzn::encoded_message& message);

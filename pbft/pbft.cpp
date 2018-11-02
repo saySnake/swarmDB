@@ -253,10 +253,12 @@ pbft::preliminary_filter_msg(const pbft_msg& msg)
 }
 
 std::shared_ptr<pbft_operation>
-pbft::setup_request_operation(const pbft_request& msg, const std::shared_ptr<session_base>& session)
+pbft::setup_request_operation(const bzn::encoded_message& req, const bzn::hash_t& request_hash, const std::shared_ptr<session_base>& session)
 {
     const uint64_t request_seq = this->next_issued_sequence_number++;
-    auto op = this->find_operation(this->view, request_seq, msg);
+    auto op = this->find_operation(this->view, request_seq, request_hash);
+
+    op->record_request(req);
 
     if (session)
     {
@@ -289,8 +291,7 @@ pbft::handle_request(const bzn::encoded_message& msg, const bzn::json_message& o
 
     //TODO: keep track of what requests we've seen based on timestamp and only send preprepares once - KEP-329
 
-    auto op = setup_request_operation(msg, session);
-    op->record_request(msg);
+    auto op = setup_request_operation(msg, req_hash, session);
     this->do_preprepare(op);
 }
 
