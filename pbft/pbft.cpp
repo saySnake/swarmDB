@@ -474,8 +474,11 @@ pbft::do_committed(const std::shared_ptr<pbft_operation>& op)
         this->broadcast(this->wrap_message(msg));
     }
 
-    // Get a new shared pointer to the operation so that we can give pbft_service ownership on it
-    this->io_context->post(std::bind(&pbft_service_base::apply_operation, this->service, this->find_operation(op)));
+    if (op->request.type() == PBFT_REQ_DATABASE && op->sequence >= this->first_sequence_to_execute)
+    {
+        // Get a new shared pointer to the operation so that we can give pbft_service ownership on it
+        this->io_context->post(std::bind(&pbft_service_base::apply_operation, this->service, this->find_operation(op)));
+    }
 }
 
 size_t

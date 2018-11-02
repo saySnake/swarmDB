@@ -42,7 +42,6 @@ namespace bzn
 
         void run_transaction_through_backup(bool commit = true);
 
-    protected:
         size_t index = 0;
         uint64_t view = 1;
     };
