@@ -36,6 +36,10 @@ namespace bzn
 
         void prepare_for_checkpoint(size_t seq);
 
+        void send_checkpoint(bzn::peer_address_t node, uint64_t sequence);
+
+        void stabilize_checkpoint(size_t seq);
+
         void force_checkpoint(size_t seq);
 
         void run_transaction_through_primary(bool commit = true);
@@ -43,6 +47,8 @@ namespace bzn
         void run_transaction_through_backup(bool commit = true);
 
         size_t faulty_nodes_bound() const;
+
+        void set_first_sequence_to_execute(uint64_t val);
 
         size_t index = 0;
         uint64_t view = 1;
