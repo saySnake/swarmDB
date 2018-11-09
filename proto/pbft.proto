@@ -15,6 +15,7 @@
 syntax = "proto3";
 
 import "database.proto";
+import "bluzelle.proto";
 
 message pbft_msg
 {
@@ -31,9 +32,6 @@ message pbft_msg
 
     // most messages should only have the hash, not the original request
     bytes request = 4;
-
-    // Needed for prepare, commit, request, checkpoint, but included always for clarity. This is the sender's uuid.
-    string sender = 5;
 
     // for checkpoints
     string state_hash = 6;
@@ -52,6 +50,8 @@ message pbft_msg
     // for newview
     // V valid view change messages
     repeated bytes viewchange_messages = 11;
+
+    repeated bzn_envelope pre_prepare_messages = 12;
 
 }
 
@@ -137,6 +137,7 @@ enum pbft_request_type {
     PBFT_REQ_DATABASE = 1;
     PBFT_REQ_NEW_CONFIG = 2;
     PBFT_REQ_INTERNAL = 3;
+    PBFT_REQ_NO_OP = 4;
 }
 
 message pbft_internal_msg
