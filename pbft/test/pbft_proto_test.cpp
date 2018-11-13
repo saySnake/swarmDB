@@ -50,7 +50,7 @@ namespace bzn
                         operation = this->pbft->find_operation(this->view, msg.sequence(), msg.request());
 
                     // the SUT needs the pre-prepare it sends to itself in order to execute state machine
-                    this->send_preprepare(operation->sequence, operation->request);
+                    this->send_preprepare(operation->sequence, operation->get_request());
                 }
             }));
 
@@ -84,7 +84,7 @@ namespace bzn
         preprepare.set_view(this->view);
         preprepare.set_sequence(sequence);
         preprepare.set_type(PBFT_MSG_PREPREPARE);
-        preprepare.set_allocated_request(new pbft_request(request));
+        preprepare.set_allocated_request((new pbft_request(request)));
         auto wmsg = wrap_pbft_msg(preprepare);
         wmsg.set_sender(peer.uuid);
         pbft->handle_message(preprepare, wmsg);
@@ -204,7 +204,7 @@ namespace bzn
         // send node commits to SUT
         if (commit)
         {
-            send_commits(op->sequence, op->request);
+            send_commits(op->sequence, op->get_request());
         }
     }
 

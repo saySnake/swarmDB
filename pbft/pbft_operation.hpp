@@ -99,7 +99,6 @@ namespace bzn
 
         std::string preprepare_message;
         std::map<uuid_t, std::string> prepare_messages;  // uuid_t is the sender uuid, prepared messages
-        std::map<uuid_t, std::string> prepare_messages;  // uuid_t is the sender uuid
         bzn::encoded_message encoded_request;
         pbft_request parsed_request;
 
