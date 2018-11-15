@@ -242,12 +242,52 @@ namespace bzn::test
     }
 
     TEST_F(pbft_test, request_redirect_to_primary_notifies_failure_detector) {
-        EXPECT_CALL(*mock_failure_detector, request_seen(_)).Times(Exactly(0));
+        EXPECT_CALL(*mock_failure_detector, request_seen(_)).Times(Exactly(1));
 
         this->uuid = SECOND_NODE_UUID;
         this->build_pbft();
 
         EXPECT_FALSE(pbft->is_primary());
         pbft->handle_database_message(this->request_json, this->mock_session);
+    }
+
+    MATCHER(operation_ptr_has_session, "")
+    {
+        return arg->has_session();
+    }
+
+    TEST_F(pbft_test, request_redirect_attaches_session) {
+
+        EXPECT_CALL(*mock_service, apply_operation(operation_ptr_has_session()));
+
+        this->uuid = SECOND_NODE_UUID;
+        this->build_pbft();
+
+        EXPECT_FALSE(pbft->is_primary());
+        pbft->handle_database_message(this->request_json, this->mock_session);
+
+        auto hash = this->crypto->hash(request_json.toStyledString());
+
+        this->send_preprepare(1, 1, hash, this->request_json.toStyledString());
+        this->send_prepares(1, 1, hash);
+        this->send_commits(1, 1, hash);
+    }
+
+    TEST_F(pbft_test, late_request_redirect_attaches_session) {
+
+        EXPECT_CALL(*mock_service, apply_operation(operation_ptr_has_session()));
+
+        this->uuid = SECOND_NODE_UUID;
+        this->build_pbft();
+
+        EXPECT_FALSE(pbft->is_primary());
+        auto hash = this->crypto->hash(request_json.toStyledString());
+
+        this->send_preprepare(1, 1, hash, this->request_json.toStyledString());
+        this->send_prepares(1, 1, hash);
+
+        pbft->handle_database_message(this->request_json, this->mock_session);
+
+        this->send_commits(1, 1, hash);
     }
 }

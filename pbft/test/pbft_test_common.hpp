@@ -87,6 +87,10 @@ namespace bzn::test
         void build_pbft();
 
         void TearDown();
+
+        void send_preprepare(uint64_t view, uint64_t sequence, bzn::hash_t req_hash, std::optional<std::string> request);
+        void send_prepares(uint64_t view, uint64_t sequence, bzn::hash_t req_hash);
+        void send_commits(uint64_t view, uint64_t sequence, bzn::hash_t req_hash);
     };
 
 

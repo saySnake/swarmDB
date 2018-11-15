@@ -266,6 +266,36 @@ pbft::handle_request(const pbft_request& /*msg*/, const bzn::json_message& origi
     {
         LOG(info) << "Forwarding request to primary: " << original_msg.toStyledString();
         this->node->send_message(bzn::make_endpoint(this->get_primary()), std::make_shared<bzn::json_message>(original_msg));
+
+        // TODO: KEP-807
+        const bzn::hash_t req_hash = this->crypto->hash(original_msg.toStyledString());
+
+        const auto existing_operation = std::find_if(this->operations.begin(), this->operations.end(),
+            // This search is inefficient for in-memory operations, but the db lookup that will replace it is not
+            [&](const auto& pair)
+            {
+                return std::get<2>(pair.first) == req_hash;
+            });
+
+        // If we already have an operation for this request_hash, attach the session to it
+        if (existing_operation != this->operations.end())
+        {
+            const std::shared_ptr<bzn::pbft_operation>& op = existing_operation->second;
+            LOG(debug) << "We already had an operation for that request hash; attaching session to it";
+
+            if (!op->has_session())
+            {
+                op->set_session(session);
+            }
+        }
+        else
+        {
+            LOG(debug) << "Saving session because we don't have an operation for this hash: " << req_hash;
+            this->sessions_waiting_on_forwarded_requests[req_hash] = session;
+        }
+
+        this->failure_detector->request_seen(req_hash);
+
         return;
     }
 
@@ -613,8 +643,15 @@ pbft::find_operation(uint64_t view, uint64_t sequence, const bzn::hash_t& req_ha
         std::shared_ptr<pbft_operation> op = std::make_shared<pbft_operation>(view, sequence, req_hash,
                 this->current_peers_ptr());
         auto result = operations.emplace(std::piecewise_construct, std::forward_as_tuple(std::move(key)), std::forward_as_tuple(op));
-
         assert(result.second);
+
+        if (this->sessions_waiting_on_forwarded_requests.count(req_hash) > 0)
+        {
+            LOG(debug) << "Attaching pending session to new operation";
+            result.first->second->set_session(sessions_waiting_on_forwarded_requests[req_hash]);
+            this->sessions_waiting_on_forwarded_requests.erase(req_hash);
+        }
+
         return result.first->second;
     }
 

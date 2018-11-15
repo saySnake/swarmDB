@@ -119,6 +119,59 @@ namespace bzn::test
         }
     }
 
+    void
+    pbft_test::send_preprepare(uint64_t view, uint64_t sequence, bzn::hash_t req_hash, std::optional<std::string> request)
+    {
+        pbft_msg preprepare;
+        preprepare.set_view(view);
+        preprepare.set_sequence(sequence);
+        preprepare.set_request_hash(req_hash);
+        preprepare.set_request(request.value_or(""));
+        preprepare.set_type(PBFT_MSG_PREPREPARE);
+
+        bzn_envelope original;
+        original.set_pbft(preprepare.SerializeAsString());
+
+        this->pbft->handle_message(preprepare, original);
+    }
+
+    void
+    pbft_test::send_prepares(uint64_t view, uint64_t sequence, bzn::hash_t req_hash)
+    {
+        pbft_msg prepare;
+        prepare.set_view(view);
+        prepare.set_sequence(sequence);
+        prepare.set_request_hash(req_hash);
+        prepare.set_type(PBFT_MSG_PREPARE);
+
+        for (const auto& peer : TEST_PEER_LIST)
+        {
+            bzn_envelope original;
+            original.set_pbft(prepare.SerializeAsString());
+            original.set_sender(peer.uuid);
+            this->pbft->handle_message(prepare, original);
+        }
+    }
+
+    void
+    pbft_test::send_commits(uint64_t view, uint64_t sequence, bzn::hash_t req_hash)
+    {
+        pbft_msg commit;
+        commit.set_view(view);
+        commit.set_sequence(sequence);
+        commit.set_request_hash(req_hash);
+        commit.set_type(PBFT_MSG_COMMIT);
+
+        for (const auto& peer : TEST_PEER_LIST)
+        {
+            bzn_envelope original;
+            original.set_pbft(commit.SerializeAsString());
+            original.set_sender(peer.uuid);
+            this->pbft->handle_message(commit, original);
+        }
+    }
+
+
     pbft_msg
     extract_pbft_msg(std::string msg)
     {
