@@ -40,6 +40,8 @@
 #include <boost/log/utility/setup/file.hpp>
 #include <boost/program_options.hpp>
 #include <thread>
+#include <iostream>
+#include <fstream>
 
 
 void
@@ -231,6 +233,27 @@ main(int argc, const char* argv[])
 
         node->start();
         chaos->start();
+
+        bzn_envelope env;
+        database_response db;
+        db.mutable_header()->set_db_uuid("BestDatabaseEver");
+        db.mutable_header()->set_transaction_id(42);
+        db.mutable_read()->set_key("some key");
+        db.mutable_read()->set_value("very important data and stuffs");
+
+        env.set_database_response(db.SerializeAsString());
+        crypto->sign(env);
+
+        std::string ser = env.SerializeAsString();
+        LOG(info) << "msg: " << ser;
+        LOG(info) << "sender: " << env.sender();
+        LOG(info) << "sig: " << env.signature();
+
+        std::ofstream f;
+        f.open("message_for_monty");
+        f << ser;
+        f.close();
+
 
         if (options->get_simple_options().get<bool>(bzn::option_names::AUDIT_ENABLED))
         {
