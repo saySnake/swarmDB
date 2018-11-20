@@ -25,18 +25,19 @@ namespace
 crud::crud(std::shared_ptr<bzn::storage_base> storage, std::shared_ptr<bzn::subscription_manager_base> subscription_manager)
            : storage(std::move(storage))
            , subscription_manager(std::move(subscription_manager))
-           , message_handlers{{database_msg::kCreate, std::bind(&crud::handle_create, this, std::placeholders::_1, std::placeholders::_2)},
-                              {database_msg::kRead,   std::bind(&crud::handle_read,   this, std::placeholders::_1, std::placeholders::_2)},
-                              {database_msg::kUpdate, std::bind(&crud::handle_update, this, std::placeholders::_1, std::placeholders::_2)},
-                              {database_msg::kDelete, std::bind(&crud::handle_delete, this, std::placeholders::_1, std::placeholders::_2)},
-                              {database_msg::kHas,    std::bind(&crud::handle_has,    this, std::placeholders::_1, std::placeholders::_2)},
-                              {database_msg::kKeys,   std::bind(&crud::handle_keys,   this, std::placeholders::_1, std::placeholders::_2)},
-                              {database_msg::kSize,   std::bind(&crud::handle_size,   this, std::placeholders::_1, std::placeholders::_2)},
-                              {database_msg::kSubscribe,   std::bind(&crud::handle_subscribe,   this, std::placeholders::_1, std::placeholders::_2)},
-                              {database_msg::kUnsubscribe, std::bind(&crud::handle_unsubscribe, this, std::placeholders::_1, std::placeholders::_2)},
-                              {database_msg::kCreateDb,    std::bind(&crud::handle_create_db,   this, std::placeholders::_1, std::placeholders::_2)},
-                              {database_msg::kDeleteDb,    std::bind(&crud::handle_delete_db,   this, std::placeholders::_1, std::placeholders::_2)},
-                              {database_msg::kHasDb,       std::bind(&crud::handle_has_db,      this, std::placeholders::_1, std::placeholders::_2)}}
+           , message_handlers{
+                 {database_msg::kCreate, std::bind(&crud::handle_create, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3)},
+                 {database_msg::kRead,   std::bind(&crud::handle_read,   this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3)},
+                 {database_msg::kUpdate, std::bind(&crud::handle_update, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3)},
+                 {database_msg::kDelete, std::bind(&crud::handle_delete, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3)},
+                 {database_msg::kHas,    std::bind(&crud::handle_has,    this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3)},
+                 {database_msg::kKeys,   std::bind(&crud::handle_keys,   this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3)},
+                 {database_msg::kSize,   std::bind(&crud::handle_size,   this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3)},
+                 {database_msg::kSubscribe,   std::bind(&crud::handle_subscribe,   this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3)},
+                 {database_msg::kUnsubscribe, std::bind(&crud::handle_unsubscribe, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3)},
+                 {database_msg::kCreateDb,    std::bind(&crud::handle_create_db,   this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3)},
+                 {database_msg::kDeleteDb,    std::bind(&crud::handle_delete_db,   this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3)},
+                 {database_msg::kHasDb,       std::bind(&crud::handle_has_db,      this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3)}}
 {
 }
 
@@ -53,13 +54,13 @@ crud::start()
 
 
 void
-crud::handle_request(const database_msg& request, const std::shared_ptr<bzn::session_base>& session)
+crud::handle_request(const bzn::caller_id_t& caller_id, const database_msg& request, const std::shared_ptr<bzn::session_base>& session)
 {
     if (auto it = this->message_handlers.find(request.msg_case()); it != this->message_handlers.end())
     {
         LOG(debug) << "processing message: " << uint32_t(request.msg_case());
 
-        it->second(request, session);
+        it->second(caller_id, request, session);
 
         return;
     }
@@ -107,7 +108,7 @@ crud::send_response(const database_msg& request, const bzn::storage_base::result
 
 
 void
-crud::handle_create(const database_msg& request, std::shared_ptr<bzn::session_base> session)
+crud::handle_create(const bzn::caller_id_t& /*caller_id*/, const database_msg& request, std::shared_ptr<bzn::session_base> session)
 {
     storage_base::result result{storage_base::result::db_not_found};
 
@@ -128,7 +129,7 @@ crud::handle_create(const database_msg& request, std::shared_ptr<bzn::session_ba
 
 
 void
-crud::handle_read(const database_msg& request, std::shared_ptr<bzn::session_base> session)
+crud::handle_read(const bzn::caller_id_t& /*caller_id*/, const database_msg& request, std::shared_ptr<bzn::session_base> session)
 {
     if (session)
     {
@@ -153,7 +154,7 @@ crud::handle_read(const database_msg& request, std::shared_ptr<bzn::session_base
 
 
 void
-crud::handle_update(const database_msg& request, std::shared_ptr<bzn::session_base> session)
+crud::handle_update(const bzn::caller_id_t& /*caller_id*/, const database_msg& request, std::shared_ptr<bzn::session_base> session)
 {
     auto result = this->storage->update(request.header().db_uuid(), request.update().key(), request.update().value());
 
@@ -169,7 +170,7 @@ crud::handle_update(const database_msg& request, std::shared_ptr<bzn::session_ba
 
 
 void
-crud::handle_delete(const database_msg& request, std::shared_ptr<bzn::session_base> session)
+crud::handle_delete(const bzn::caller_id_t& /*caller_id*/, const database_msg& request, std::shared_ptr<bzn::session_base> session)
 {
     auto result = this->storage->remove(request.header().db_uuid(), request.delete_().key());
 
@@ -185,7 +186,7 @@ crud::handle_delete(const database_msg& request, std::shared_ptr<bzn::session_ba
 
 
 void
-crud::handle_has(const database_msg& request, std::shared_ptr<bzn::session_base> session)
+crud::handle_has(const bzn::caller_id_t& /*caller_id*/, const database_msg& request, std::shared_ptr<bzn::session_base> session)
 {
     if (session)
     {
@@ -202,7 +203,7 @@ crud::handle_has(const database_msg& request, std::shared_ptr<bzn::session_base>
 
 
 void
-crud::handle_keys(const database_msg& request, std::shared_ptr<bzn::session_base> session)
+crud::handle_keys(const bzn::caller_id_t& /*caller_id*/, const database_msg& request, std::shared_ptr<bzn::session_base> session)
 {
     if (session)
     {
@@ -226,7 +227,7 @@ crud::handle_keys(const database_msg& request, std::shared_ptr<bzn::session_base
 
 
 void
-crud::handle_size(const database_msg& request, std::shared_ptr<bzn::session_base> session)
+crud::handle_size(const bzn::caller_id_t& /*caller_id*/, const database_msg& request, std::shared_ptr<bzn::session_base> session)
 {
     if (session)
     {
@@ -247,7 +248,7 @@ crud::handle_size(const database_msg& request, std::shared_ptr<bzn::session_base
 
 
 void
-crud::handle_subscribe(const database_msg& request, std::shared_ptr<bzn::session_base> session)
+crud::handle_subscribe(const bzn::caller_id_t& /*caller_id*/, const database_msg& request, std::shared_ptr<bzn::session_base> session)
 {
     if (session)
     {
@@ -266,7 +267,7 @@ crud::handle_subscribe(const database_msg& request, std::shared_ptr<bzn::session
 
 
 void
-crud::handle_unsubscribe(const database_msg& request, std::shared_ptr<bzn::session_base> session)
+crud::handle_unsubscribe(const bzn::caller_id_t& /*caller_id*/, const database_msg& request, std::shared_ptr<bzn::session_base> session)
 {
     if (session)
     {
@@ -286,7 +287,7 @@ crud::handle_unsubscribe(const database_msg& request, std::shared_ptr<bzn::sessi
 
 
 void
-crud::handle_create_db(const database_msg& request, std::shared_ptr<bzn::session_base> session)
+crud::handle_create_db(const bzn::caller_id_t& /*caller_id*/, const database_msg& request, std::shared_ptr<bzn::session_base> session)
 {
     storage_base::result result;
 
@@ -311,7 +312,7 @@ crud::handle_create_db(const database_msg& request, std::shared_ptr<bzn::session
 
 
 void
-crud::handle_delete_db(const database_msg& request, std::shared_ptr<bzn::session_base> session)
+crud::handle_delete_db(const bzn::caller_id_t& /*caller_id*/, const database_msg& request, std::shared_ptr<bzn::session_base> session)
 {
     storage_base::result result;
 
@@ -338,7 +339,7 @@ crud::handle_delete_db(const database_msg& request, std::shared_ptr<bzn::session
 
 
 void
-crud::handle_has_db(const database_msg& request, std::shared_ptr<bzn::session_base> session)
+crud::handle_has_db(const bzn::caller_id_t& /*caller_id*/, const database_msg& request, std::shared_ptr<bzn::session_base> session)
 {
     if (session)
     {

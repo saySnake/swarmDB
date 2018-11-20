@@ -96,12 +96,12 @@ database_pbft_service::process_awaiting_operations()
             // session found, but is the connection still around?
             auto session = session_it->second.lock();
 
-            this->crud->handle_request(request.operation(), (session) ? session : nullptr);
+            this->crud->handle_request("caller_id", request.operation(), (session) ? session : nullptr);
         }
         else
         {
             // session not found then this was probably loaded from the database...
-            this->crud->handle_request(request.operation(), nullptr);
+            this->crud->handle_request("caller_id", request.operation(), nullptr);
         }
 
         this->io_context->post(std::bind(this->execute_handler, nullptr)); // TODO: need to find the pbft_operation here; requires pbft_operation not being an in-memory construct
